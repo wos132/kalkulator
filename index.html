@@ -4,181 +4,135 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
 <title>Kalkulator + Camera (poprawione)</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
-  :root{ --bg:#071226; --btn:#1f2937; --op:#15303b; --text:#e6eef8; --accent:#10b981; }
-  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
-  body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071027,#071b2d);padding:12px;color:var(--text)}
-  .phone{width:360px;max-width:94vw;border-radius:24px;padding:14px;background:linear-gradient(180deg,#081226,#0b1422);box-shadow:0 10px 30px rgba(2,6,23,0.7)}
-  .screen{background:linear-gradient(180deg,#071226,#071226 60%);border-radius:12px;padding:10px;min-height:120px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;-ms-user-select:none;}
-  .result{font-size:32px;text-align:right;padding:8px 6px;min-height:48px;line-height:1;word-break:break-all;user-select:none;-webkit-user-select:none;-ms-user-select:none;}
-  .sub{font-size:14px;color:rgba(230,238,248,0.6);text-align:right;margin-bottom:6px;user-select:none;-webkit-user-select:none;-ms-user-select:none;}
-  .pad{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
-  button.key{background:var(--btn);color:var(--text);border:0;height:64px;border-radius:10px;font-size:22px;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;-ms-user-select:none;position:relative;overflow:hidden;touch-action:manipulation}
-  button.key.op{background:var(--op);color:#bfece0}
-  button.key.wide{grid-column:span 2}
-  #btnEq{background:linear-gradient(180deg,#0b5a4a,#0a4538);color:#fff}
-  .notif{position:absolute;left:14px;top:14px;right:14px;text-align:center;font-size:13px;color:#fff;opacity:0.95;z-index:5;pointer-events:none;display:none}
-  .hold-dot{position:absolute;left:12px;bottom:12px;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.06);box-shadow:0 0 0 0 rgba(255,255,255,0.08);transition:all .12s;z-index:6}
-  .hold-dot.active{background:var(--accent);box-shadow:0 0 10px 6px rgba(16,185,129,0.12);transform:scale(1.05)}
-  #messageBar{height:28px;margin-top:8px;text-align:center;color:rgba(255,255,255,0.8);font-size:13px}
-  .footer{font-size:12px;text-align:center;margin-top:10px;color:rgba(230,238,248,0.6)}
-  .eq-overlay{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s;z-index:20}
-  .eq-overlay.visible{opacity:1}
-  .eq-overlay video{width:100%;height:100%;object-fit:cover}
-  @media(max-width:360px){.phone{width:320px}button.key{height:56px;font-size:20px}}
+:root{ --bg:#071226; --btn:#1f2937; --op:#15303b; --text:#e6eef8; --accent:#10b981; --flash:#10b981; }
+html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071027,#071b2d);padding:12px;color:var(--text)}
+.phone{width:360px;max-width:94vw;border-radius:24px;padding:14px;background:linear-gradient(180deg,#081226,#0b1422);box-shadow:0 10px 30px rgba(2,6,23,0.7)}
+.screen{background:linear-gradient(180deg,#071226,#071226 60%);border-radius:12px;padding:10px;min-height:120px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;-ms-user-select:none;}
+.result{font-size:32px;text-align:right;padding:8px 6px;min-height:48px;line-height:1;word-break:break-all;user-select:none;-webkit-user-select:none;-ms-user-select:none;}
+.sub{font-size:14px;color:rgba(230,238,248,0.6);text-align:right;margin-bottom:6px;user-select:none;-webkit-user-select:none;-ms-user-select:none;}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+button.key{background:var(--btn);color:var(--text);border:0;height:64px;border-radius:10px;font-size:22px;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;-ms-user-select:none;position:relative;overflow:hidden;touch-action:manipulation;transition:background 0.1s;}
+button.key.op{background:var(--op);color:#bfece0}
+button.key.wide{grid-column:span 2}
+#btnEq{background:linear-gradient(180deg,#0b5a4a,#0a4538);color:#fff}
+.hold-dot{position:absolute;left:12px;bottom:12px;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.06);box-shadow:0 0 0 0 rgba(255,255,255,0.08);transition:all .12s;z-index:6}
+.hold-dot.active{background:var(--accent);box-shadow:0 0 10px 6px rgba(16,185,129,0.12);transform:scale(1.05)}
+.eq-overlay{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s;z-index:20}
+.eq-overlay.visible{opacity:1}
+.eq-overlay video{width:100%;height:100%;object-fit:cover}
+.flash{animation:flash 0.15s ease 0s 2; }
+@keyframes flash{
+  0%{background:#0b5a4a;}
+  50%{background:var(--flash);}
+  100%{background:#0b5a4a;}
+}
 </style>
 </head>
 <body>
-  <div class="phone" id="app">
-    <div class="screen" id="screen">
-      <div class="notif" id="notif"></div>
-      <div class="sub" id="subDisplay">&nbsp;</div>
-      <div class="result" id="result">0</div>
-      <div class="hold-dot" id="holdDot"></div>
-    </div>
-
-    <div class="pad" id="pad">
-      <button class="key" data-val="C" id="btnC">C</button>
-      <button class="key" data-val="±" id="btnSign">±</button>
-      <button class="key" data-val="%" id="btnPercent">%</button>
-      <button class="key op" data-val="/" id="btnDiv">÷</button>
-
-      <button class="key" data-val="7" id="btn7">7</button>
-      <button class="key" data-val="8" id="btn8">8</button>
-      <button class="key" data-val="9" id="btn9">9</button>
-      <button class="key op" data-val="*" id="btnMul">×</button>
-
-      <button class="key" data-val="4" id="btn4">4</button>
-      <button class="key" data-val="5" id="btn5">5</button>
-      <button class="key" data-val="6" id="btn6">6</button>
-      <button class="key op" data-val="-" id="btnSub">−</button>
-
-      <button class="key" data-val="1" id="btn1">1</button>
-      <button class="key" data-val="2" id="btn2">2</button>
-      <button class="key" data-val="3" id="btn3">3</button>
-      <button class="key op" data-val="+" id="btnAdd">+</button>
-
-      <button class="key wide" data-val="0" id="btn0">0</button>
-      <button class="key" data-val="." id="btnDot">.</button>
-
-      <button class="key op" data-val="=" id="btnEq">=
-        <div class="eq-overlay" id="eqOverlay" aria-hidden="true">
-          <video id="eqVideo" autoplay playsinline muted></video>
-        </div>
-      </button>
-    </div>
-
-    <div id="messageBar"></div>
-    <div class="footer">Przytrzymaj <strong>7</strong> — podgląd w "=". Puść 7 żeby zapisać. Przytrzymaj <strong>0</strong> — pobierz ZIP. Przytrzymaj <strong>C</strong> — usuń.</div>
+<div class="phone" id="app">
+  <div class="screen" id="screen">
+    <div class="sub" id="subDisplay">.</div>
+    <div class="result" id="result">0</div>
+    <div class="hold-dot" id="holdDot"></div>
   </div>
 
+  <div class="pad" id="pad">
+    <button class="key" data-val="C" id="btnC">C</button>
+    <button class="key" data-val="±" id="btnSign">±</button>
+    <button class="key" data-val="%" id="btnPercent">%</button>
+    <button class="key op" data-val="/" id="btnDiv">÷</button>
+
+    <button class="key" data-val="7" id="btn7">7</button>
+    <button class="key" data-val="8" id="btn8">8</button>
+    <button class="key" data-val="9" id="btn9">9</button>
+    <button class="key op" data-val="*" id="btnMul">×</button>
+
+    <button class="key" data-val="4" id="btn4">4</button>
+    <button class="key" data-val="5" id="btn5">5</button>
+    <button class="key" data-val="6" id="btn6">6</button>
+    <button class="key op" data-val="-" id="btnSub">−</button>
+
+    <button class="key" data-val="1" id="btn1">1</button>
+    <button class="key" data-val="2" id="btn2">2</button>
+    <button class="key" data-val="3" id="btn3">3</button>
+    <button class="key op" data-val="+" id="btnAdd">+</button>
+
+    <button class="key wide" data-val="0" id="btn0">0</button>
+    <button class="key" data-val="." id="btnDot">.</button>
+
+    <button class="key op" data-val="=" id="btnEq">=
+      <div class="eq-overlay" id="eqOverlay" aria-hidden="true">
+        <video id="eqVideo" autoplay playsinline muted></video>
+      </div>
+    </button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>
 const resultEl = document.getElementById('result');
 const subEl = document.getElementById('subDisplay');
-const notifEl = document.getElementById('notif');
-const messageBar = document.getElementById('messageBar');
 const holdDot = document.getElementById('holdDot');
+const eqOverlay = document.getElementById('eqOverlay');
+const eqVideo = document.getElementById('eqVideo');
+const btnEq = document.getElementById('btnEq');
 
 let current='0', expression='';
-
 const LS_KEY='calc_photos_v2';
 const MAX_PHOTOS=30;
 const MAX_WIDTH=800;
+let stream=null;
 
-function loadSaved(){ try{ const v = localStorage.getItem(LS_KEY); return v ? JSON.parse(v) : []; }catch(e){ return []; } }
-function saveSaved(arr){ try{ localStorage.setItem(LS_KEY, JSON.stringify(arr)); return true; }catch(e){ return false; } }
 function setResult(v){ current=String(v); resultEl.textContent=current; }
-function setSub(v){ subEl.textContent = v || '\u00A0'; }
-function showNotif(msg, t=1500){ notifEl.textContent=msg; notifEl.style.display='block'; setTimeout(()=>{ notifEl.style.display='none'; }, t); }
-function setMessage(msg){ messageBar.textContent = msg || ''; }
-
+function setSub(v){ subEl.textContent = v || '.'; }
 function inputChar(ch){
-  if (ch==='C'){ expression=''; current='0'; setResult(current); setSub(''); return; }
-  if (ch==='='){ computeResult(); return; }
-  if ('+-*/'.includes(ch)){
-    if (expression==='' && current!=='0') expression = current;
-    expression += ch;
-    setSub(expression);
-    current='0';
-    setResult(current);
-    return;
-  }
-  if (ch==='.'){ if (!current.includes('.')) current += '.'; setResult(current); return; }
-  if (current==='0') current = ch; else current += ch;
-  setResult(current);
+  if(ch==='C'){ expression=''; setResult('0'); setSub('.'); return; }
+  if(ch==='='){ computeResult(); return; }
+  if('+-*/'.includes(ch)){ if(expression==='' && current!=='0') expression=current; expression+=ch; setSub(expression); current='0'; setResult(current); return; }
+  if(ch==='.'){ if(!current.includes('.')) current+=ch; setResult(current); return; }
+  if(current==='0') current=ch; else current+=ch; setResult(current);
 }
-function computeResult(){
-  try{
-    let expr = (expression||'') + current;
-    expr = expr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
-    if (!/^[0-9+\-*/().\s]+$/.test(expr)) throw 'Invalid';
-    const val = Function('"use strict";return ('+expr+')')();
-    setResult(String(val));
-    setSub('');
-    expression='';
-  }catch(e){
-    setResult('Error'); setSub(''); expression='';
-  }
-}
+function computeResult(){ try{ let expr=(expression||'')+current; expr=expr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-'); const val=Function('"use strict";return('+expr+')')(); setResult(val); setSub('.'); expression=''; }catch{ setResult('Error'); setSub('.'); expression=''; } }
 
 document.querySelectorAll('button.key').forEach(btn=>{
-  const val = btn.dataset.val;
-  btn.addEventListener('click', (e)=>{
-    if (btn._longHandled){ btn._longHandled=false; return; }
-    if (val==='='){ computeResult(); } else if (val==='C'){ inputChar('C'); } else { inputChar(val); }
-  });
+  const val=btn.dataset.val;
+  btn.addEventListener('click', e=>{ if(btn._longHandled){ btn._longHandled=false; return; } if(val==='='){ computeResult(); } else { inputChar(val); } });
 });
 
 const LONG_MS=600;
-function addLongPressWithPointer(buttonEl, onLongStart, onLongRelease){
-  let timer=null; let longActive=false; let pointerId=null;
-  function down(e){
-    if (pointerId !== null) return;
-    pointerId = e.pointerId;
-    buttonEl.setPointerCapture(pointerId);
-    buttonEl._longHandled = false;
-    longActive=false;
-    timer = setTimeout(()=>{
-      longActive = true; buttonEl._longHandled = true; holdDot.classList.add('active'); onLongStart(e);
-    }, LONG_MS); e.preventDefault();
-  }
-  function up(e){
-    if (e.pointerId !== pointerId) return;
-    if (timer) clearTimeout(timer);
-    try{ buttonEl.releasePointerCapture(pointerId); }catch(_){}
-    pointerId = null;
-    if (longActive){ longActive=false; holdDot.classList.remove('active'); onLongRelease(e); }
-  }
-  function cancel(e){ if (e.pointerId !== pointerId) return; if (timer) clearTimeout(timer); try{ buttonEl.releasePointerCapture(pointerId); }catch(_){ } pointerId=null; if (longActive){ longActive=false; holdDot.classList.remove('active'); } }
+function addLongPress(buttonEl, startFunc, endFunc){
+  let timer=null, longActive=false, pointerId=null;
+  function down(e){ if(pointerId!==null) return; pointerId=e.pointerId; buttonEl.setPointerCapture(pointerId); buttonEl._longHandled=false; longActive=false; timer=setTimeout(()=>{ longActive=true; buttonEl._longHandled=true; holdDot.classList.add('active'); startFunc(e); }, LONG_MS); e.preventDefault();}
+  function up(e){ if(e.pointerId!==pointerId) return; if(timer) clearTimeout(timer); try{ buttonEl.releasePointerCapture(pointerId);}catch{} pointerId=null; if(longActive){ longActive=false; holdDot.classList.remove('active'); endFunc(e); }}
+  function cancel(e){ if(e.pointerId!==pointerId) return; if(timer) clearTimeout(timer); try{ buttonEl.releasePointerCapture(pointerId);}catch{} pointerId=null; if(longActive){ longActive=false; holdDot.classList.remove('active'); } }
   buttonEl.addEventListener('pointerdown', down);
   buttonEl.addEventListener('pointerup', up);
   buttonEl.addEventListener('pointercancel', cancel);
   buttonEl.addEventListener('pointerleave', cancel);
 }
 
-const eqOverlay = document.getElementById('eqOverlay');
-const eqVideo = document.getElementById('eqVideo');
-let stream = null;
-async function ensureCamera(){ if (stream) return stream; try{ stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio:false }); eqVideo.srcObject = stream; return stream; }catch(err){ stream=null; showNotif('Nie można uzyskać kamery.', 2500); return null; } }
-async function showEqPreview(){ const s = await ensureCamera(); if (!s) return false; eqOverlay.classList.add('visible'); eqOverlay.setAttribute('aria-hidden','false'); setMessage('Trzymaj 7 -> puść aby zapisać'); return true; }
-function hideEqPreview(){ eqOverlay.classList.remove('visible'); eqOverlay.setAttribute('aria-hidden','true'); setMessage(''); }
+async function ensureCamera(){ if(stream) return stream; try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}, audio:false}); eqVideo.srcObject=stream; return stream;}catch{ stream=null; return null;}}
+async function showEqPreview(){ const s=await ensureCamera(); if(!s) return; eqOverlay.classList.add('visible'); eqOverlay.setAttribute('aria-hidden','false'); }
+function hideEqPreview(){ eqOverlay.classList.remove('visible'); eqOverlay.setAttribute('aria-hidden','true'); }
 
-function captureCompressedDataUrl(videoEl){ if (!videoEl || !videoEl.videoWidth) return null; const w = videoEl.videoWidth; const h = videoEl.videoHeight; const scale = Math.min(1, MAX_WIDTH / w); const cw = Math.round(w * scale); const ch = Math.round(h * scale); const canvas = document.createElement('canvas'); canvas.width = cw; canvas.height = ch; const ctx = canvas.getContext('2d'); ctx.drawImage(videoEl, 0, 0, cw, ch); return canvas.toDataURL('image/jpeg', 0.8); }
-function storePhoto(dataUrl){ if (!dataUrl) return false; const arr = loadSaved(); if (arr.length >= MAX_PHOTOS){ arr.shift(); } arr.push({ts:Date.now(), data:dataUrl}); const ok = saveSaved(arr); if (!ok){ showNotif('Brak miejsca w localStorage.', 2500); return false; } showNotif('Zdjęcie zapisane', 1200); return true; }
+function capturePhoto(){ if(!eqVideo.videoWidth) return null; const w=eqVideo.videoWidth, h=eqVideo.videoHeight, scale=Math.min(1,MAX_WIDTH/w); const cw=Math.round(w*scale), ch=Math.round(h*scale); const c=document.createElement('canvas'); c.width=cw; c.height=ch; const ctx=c.getContext('2d'); ctx.drawImage(eqVideo,0,0,cw,ch); return c.toDataURL('image/jpeg',0.8);}
+function storePhoto(dataUrl){ if(!dataUrl) return; const arr=JSON.parse(localStorage.getItem(LS_KEY)||'[]'); if(arr.length>=MAX_PHOTOS) arr.shift(); arr.push({ts:Date.now(),data:dataUrl}); localStorage.setItem(LS_KEY,JSON.stringify(arr)); flashEq(); }
 
-const btn7 = document.getElementById('btn7');
-addLongPressWithPointer(btn7, async ()=>{ await showEqPreview(); }, ()=>{ if (!stream){ hideEqPreview(); return; } const data = captureCompressedDataUrl(eqVideo); hideEqPreview(); if (data) storePhoto(data); });
+function flashEq(){ btnEq.classList.add('flash'); setTimeout(()=>{btnEq.classList.remove('flash');},300); }
 
-const btn0 = document.getElementById('btn0');
-addLongPressWithPointer(btn0, ()=>{ setMessage('Tworzę ZIP...'); holdDot.classList.add('active'); }, async ()=>{ holdDot.classList.remove('active'); setMessage(''); const arr = loadSaved(); if (!arr || arr.length===0){ showNotif('Brak zdjęć do pobrania',1400); return; } if (typeof JSZip === 'undefined'){ showNotif('JSZip brak',1400); return; } const zip = new JSZip(); arr.forEach((it, idx)=>{ const b64 = it.data.split(',')[1]; zip.file(`photo_${idx+1}.jpg`, b64, {base64:true}); }); try{ const blob = await zip.generateAsync({type:'blob'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'photos.zip'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); showNotif('ZIP pobrany',1400); }catch(err){ console.error(err); showNotif('Błąd przy tworzeniu ZIP',1500); } });
+const btn7=document.getElementById('btn7');
+addLongPress(btn7, async ()=>{ await showEqPreview(); }, ()=>{ const data=capturePhoto(); hideEqPreview(); if(data) storePhoto(data); });
 
-const btnC = document.getElementById('btnC');
-addLongPressWithPointer(btnC, ()=>{ setMessage('Usuwam...'); holdDot.classList.add('active'); }, ()=>{ holdDot.classList.remove('active'); setMessage(''); saveSaved([]); showNotif('Zdjęcia usunięte',1200); });
+const btn0=document.getElementById('btn0');
+addLongPress(btn0, ()=>{}, async ()=>{ const arr=JSON.parse(localStorage.getItem(LS_KEY)||'[]'); if(arr.length===0) return; const zip=new JSZip(); arr.forEach((it,i)=>{ const b64=it.data.split(',')[1]; zip.file(`photo_${i+1}.jpg`,b64,{base64:true});}); const blob=await zip.generateAsync({type:'blob'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='zdjecia.zip'; a.click(); });
 
-function updateSavedCount(){ const arr = loadSaved(); if (arr.length>0) setMessage(arr.length+' zdjęć zapisanych'); else setMessage(''); }
-updateSavedCount(); setInterval(updateSavedCount,3000);
-window.addEventListener('beforeunload', ()=>{ if (stream){ stream.getTracks().forEach(t=>t.stop()); } });
+const btnC=document.getElementById('btnC');
+addLongPress(btnC, ()=>{}, ()=>{ localStorage.removeItem(LS_KEY); });
+
+window.addEventListener('beforeunload',()=>{ if(stream){ stream.getTracks().forEach(t=>t.stop()); } });
 </script>
 </body>
 </html>
