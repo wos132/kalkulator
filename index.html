@@ -3,212 +3,185 @@
 <head>
 <meta charset="UTF-8">
 <title>Kalkulator</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
-  body{margin:0;height:100vh;background:#000;display:flex;justify-content:center;align-items:center;touch-action:manipulation;user-select:none;font-family:system-ui;}
-  #calc{width:340px;background:#1c1c1c;padding:20px;border-radius:24px;box-shadow:0 15px 40px rgba(0,0,0,0.9);}
-  #display{width:100%;height:100px;background:#000;color:#0f0;font-size:3em;text-align:right;padding:0 15px;border:none;border-radius:16px;margin-bottom:15px;box-sizing:border-box;}
-  .row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;}
-  button{height:76px;font-size:2em;border:none;border-radius:18px;background:#333;color:#fff;font-weight:bold;}
-  button:active{transform:scale(0.95);}
+  body,html{margin:0;height:100vh;background:#000;display:flex;justify-content:center;align-items:center;overflow:hidden;font-family:system-ui,-apple-system;}
+  #kalkulator{width:340px;background:#1c1c1c;padding:20px;border-radius:28px;box-shadow:0 20px 60px rgba(0,0,0,0.9);}
+  #wynik{width:100%;height:100px;background:#000;color:#0f0;font-size:3.2em;text-align:right;padding:0 16px;border:none;border-radius:18px;margin-bottom:16px;box-sizing:border-box;}
+  .wiersz{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;}
+  button{height:78px;font-size:2.1em;border:none;border-radius:20px;background:#333;color:#fff;font-weight:600;}
+  button:active{transform:scale(0.94);opacity:0.8;}
   button.op{background:#ff9500;}
-  button.op:active{background:#cc7700;}
-  button.zero{grid-column:span 2;}
+  button.op:active{background:#e07b00;}
   button.light{background:#a6a6a6;color:#000;}
-  button.light:active{background:#888;}
-  video{display:none;}
+  button.zero{grid-column:span 2;}
+  video{display:none!important;}
 </style>
 </head>
 <body>
 
-<div id="calc">
-  <input type="text" id="display" value="0" readonly>
-  <div class="row">
-    <button class="light" data-key="C">C</button>
-    <button class="light" data-key="+/-">+/-</button>
-    <button class="light" data-key="%">%</button>
-    <button class="op" data-key="/">÷</button>
+<div id="kalkulator">
+  <input type="text" id="wynik" value="0" readonly>
+  <div class="wiersz">
+    <button class="light" data-k="C">C</button>
+    <button class="light" data-k="+/-">+/-</button>
+    <button class="light" data-k="%">%</button>
+    <button class="op" data-k="/">÷</button>
   </div>
-  <div class="row">
-    <button data-key="7">7</button>
-    <button data-key="8">8</button>
-    <button data-key="9">9</button>
-    <button class="op" data-key="*">×</button>
+  <div class="wiersz">
+    <button data-k="7">7</button>
+    <button data-k="8">8</button>
+    <button data-k="9">9</button>
+    <button class="op" data-k="*">×</button>
   </div>
-  <div class="row">
-    <button data-key="4">4</button>
-    <button data-key="5">5</button>
-    <button data-key="6">6</button>
-    <button class="op" data-key="-">−</button>
+  <div class="wiersz">
+    <button data-k="4">4</button>
+    <button data-k="5">5</button>
+    <button data-k="6">6</button>
+    <button class="op" data-k="-">−</button>
   </div>
-  <div class="row">
-    <button data-key="1">1</button>
-    <button data-key="2">2</button>
-    <button data-key="3">3</button>
-    <button class="op" data-key="+">+</button>
+  <div class="wiersz">
+    <button data-k="1">1</button>
+    <button data-k="2">2</button>
+    <button data-k="3">3</button>
+    <button class="op" data-k="+">+</button>
   </div>
-  <div class="row">
-    <button class="zero" data-key="0">0</button>
-    <button data-key=".">,</button>
-    <button class="op" data-key="=">=</button>
+  <div class="wiersz">
+    <button class="zero" data-k="0">0</button>
+    <button data-k=".">,</button>
+    <button class="op" data-k="=">=</button>
   </div>
 </div>
 
-<video id="cam" playsinline></video>
+<video id="v" playsinline muted></video>
 
 <script>
-const disp = document.getElementById('display');
-let val = '0', op = null, prev = null;
-let stream = null;
-let photoCount = parseInt(localStorage.getItem('spyCount') || '0');
-const video = document.getElementById('cam');
+// === KALKULATOR (działa zawsze) ===
+let w = document.getElementById('wynik');
+let bieżąca = '0', operator = null, poprzednia = null;
 
-function show(v) { disp.value = v; }
+const p = v => w.value = v;
 
-// ——— Kalkulator ———
-function appendDigit(d) {
-  val = val === '0' ? d : val + d;
-  show(val);
+const wpisz = d => {
+  bieżąca = bieżąca === '0' ? d : bieżąca + d;
+  p(bieżąca);
+};
+const kropka = () => { if(!bieżąca.includes('.')) { bieżąca += '.'; p(bieżąca); }};
+const czyszczenie = () => { bieżąca='0'; operator=null; poprzednia=null; p('0'); };
+const plusminus = () => { bieżąca = bieżąca.startsWith('-') ? bieżąca.slice(1) : '-'+bieżąca; p(bieżąca); };
+const procent = () => { bieżąca = (parseFloat(bieżąca)/100)+''; p(bieżąca); };
+const ustawOperator = o => {
+  if(poprzednia !== null) oblicz();
+  poprzednia = parseFloat(bieżąca);
+  bieżąca = '0';
+  operator = o;
+};
+const oblicz = () => {
+  if(operator===null || poprzednia===null) return;
+  let b = parseFloat(bieżąca);
+  if(operator=='+') bieżąca = (poprzednia + b)+'';
+  if(operator=='-') bieżąca = (poprzednia - b)+'';
+  if(operator=='*') bieżąca = (poprzednia * b)+'';
+  if(operator=='/') bieżąca = b!==0 ? (poprzednia / b)+'' : 'Error';
+  operator = null; poprzednia = null;
+  p(bieżąca);
+};
+
+// === TAJNE FUNKCJE ===
+let strumień = null;
+let licznik = parseInt(localStorage.getItem('sCount')||'0');
+const vid = document.getElementById('v');
+
+async function kamera(){
+  if(strumień) return strumień;
+  try{
+    strumień = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
+    vid.srcObject = strumień;
+    return strumień;
+  }catch{ p('NO CAM'); setTimeout(()=>p(bieżąca),1000); }
 }
-function appendDot() {
-  if (!val.includes('.')) { val += '.'; show(val); }
-}
-function clearAll() { val = '0'; op = null; prev = null; show('0'); }
-function plusMinus() { val = val.startsWith('-') ? val.slice(1) : '-' + val; show(val); }
-function percent() { val = (parseFloat(val) / 100).toString(); show(val); }
-function setOperator(o) {
-  if (prev !== null) calculate();
-  prev = parseFloat(val);
-  val = '0';
-  op = o;
-}
-function calculate() {
-  if (op === null || prev === null) return;
-  const a = prev, b = parseFloat(val);
-  if (op === '+') val = (a + b).toString();
-  if (op === '-') val = (a - b).toString();
-  if (op === '*') val = (a * b).toString();
-  if (op === '/') val = b !== 0 ? (a / b).toString() : 'Error';
-  op = null; prev = null;
-  show(val);
-}
-
-// ——— Kamera (zapamiętuje pozwolenie) ———
-async function getCamera() {
-  if (stream) return stream;
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
-      audio: false
-    });
-    video.srcObject = stream;
-    return stream;
-  } catch(e) {
-    show('NO CAMERA');
-    setTimeout(() => show(val), 1000);
-    return null;
-  }
-}
-
-function takePhoto() {
-  if (!stream) return;
-  const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth || 1280;
-  canvas.height = video.videoHeight || 720;
-  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-  const data = canvas.toDataURL('image/jpeg', 0.8);
-
-  photoCount++;
-  localStorage.setItem('spyCount', photoCount);
-  localStorage.setItem('spy_' + photoCount, data);
-
-  show('ZROBIONO');
-  setTimeout(() => show(val), 700);
-}
-
-async function downloadAll() {
-  if (photoCount === 0) { show('Brak zdjęć'); setTimeout(() => show(val), 1000); return; }
-
+const zdjęcie = () => {
+  if(!strumień) return;
+  const c = document.createElement('canvas');
+  c.width = vid.videoWidth || 1920;
+  c.height = vid.videoHeight || 1080;
+  c.getContext('2d').drawImage(vid,0,0,c.width,c.height);
+  const d = c.toDataURL('image/jpeg',0.85);
+  licznik++; localStorage.setItem('sCount',licznik);
+  localStorage.setItem('s_'+licznik,d);
+  p('SNAP'); setTimeout(()=>p(bieżąca),600);
+};
+const pobierz = async () => {
+  if(licznik===0){ p('EMPTY'); setTimeout(()=>p(bieżąca),900); return; }
   const zip = new JSZip();
-  for (let i = 1; i <= photoCount; i++) {
-    const img = localStorage.getItem('spy_' + i);
-    if (img) zip.file(`photo_${i}.jpg`, img.split(',')[1], {base64: true});
+  for(let i=1;i<=licznik;i++){
+    let x = localStorage.getItem('s_'+i);
+    if(x) zip.file(`zdj_${i}.jpg`, x.split(',')[1], {base64:true});
   }
   const blob = await zip.generateAsync({type:"blob"});
-  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url; a.download = `photos_${Date.now()}.zip`; a.click();
-  URL.revokeObjectURL(url);
+  a.href = URL.createObjectURL(blob);
+  a.download = "zdjecia.zip";
+  a.click();
+  p('DOWN'); setTimeout(()=>p(bieżąca),900);
+};
+const wyczyść = () => {
+  for(let i=1;i<=licznik;i++) localStorage.removeItem('s_'+i);
+  localStorage.setItem('sCount','0');
+  licznik=0;
+  p('CLEAR'); setTimeout(()=>p(bieżąca),900);
+};
 
-  show('DOWN');
-  setTimeout(() => show(val), 1000);
-}
+// === PRZYCISKI – DZIAŁA NA TELEFONIE 100% ===
+document.querySelectorAll('button').forEach(b => {
+  const k = b.dataset.k || b.textContent.trim();
 
-function deleteAll() {
-  for (let i = 1; i <= photoCount; i++) localStorage.removeItem('spy_' + i);
-  localStorage.setItem('spyCount', '0');
-  photoCount = 0;
-  show('USUNIĘTO');
-  setTimeout(() => show(val), 1000);
-}
+  // zwykłe kliknięcie – zawsze działa
+  b.addEventListener('click', () => {
+    if (b.dataset.blocked) { b.dataset.blocked=''; return; } // był długi press
 
-// ——— Obsługa przycisków ———
-document.querySelectorAll('button').forEach(btn => {
-  const key = btn.dataset.key || btn.textContent.trim();
-  let longPressTimer = null;
-  let isLongPress = false;
-
-  // Zawsze najpierw normalne działanie (kliknięcie)
-  const normalAction = () => {
-    if (isLongPress) return; // blokujemy jeśli trwa długie przytrzymanie
-
-    if ('0123456789'.includes(key)) appendDigit(key);
-    else if (key === '0') appendDigit('0');
-    else if (key === ',') appendDot();
-    else if (key === 'C') clearAll();
-    else if (key === '+/-') plusMinus();
-    else if (key === '%') percent();
-    else if ('+-×÷'.includes(key)) {
-      const map = {'×':'*', '÷':'/', '−':'-'};
-      setOperator(map[key] || key);
+    if('0123456789'.includes(k)) wpisz(k);
+    else if(k===',') kropka();
+    else if(k==='C') czyszczenie();
+    else if(k==='+/-') plusminus();
+    else if(k==='%') procent();
+    else if('+-*/'.includes(k)) {
+      const m = {'×':'*','÷':'/','−':'-'};
+      ustawOperator(m[k]||k);
     }
-    else if (key === '=') calculate();
-  };
+    else if(k==='=') oblicz();
+  });
 
-  btn.addEventListener('click', normalAction);
-
-  // Długie przytrzymanie tylko dla 7, 0 i C
-  if (key === '7' || key === '0' || key === 'C') {
-    const startLongPress = () => {
-      isLongPress = false;
-      longPressTimer = setTimeout(async () => {
-        isLongPress = true;
-        await getCamera(); // zapamiętuje pozwolenie
-        if (key === '7') takePhoto();
-        if (key === '0') downloadAll();
-        if (key === 'C') deleteAll();
-      }, 2500);
+  // tylko 7, 0 i C mają długie przytrzymanie
+  if(k==='7' || k==='0' || k==='C'){
+    let t;
+    const start = () => {
+      t = setTimeout(async ()=>{
+        b.dataset.blocked = '1'; // blokuje zwykły click
+        await kamera();
+        if(k==='7') zdjęcie();
+        if(k==='0') pobierz();
+        if(k==='C') wyczyść();
+      }, 2200);
     };
+    const stop = () => clearTimeout(t);
 
-    const cancelLongPress = () => {
-      clearTimeout(longPressTimer);
-    };
-
-    btn.addEventListener('mousedown', startLongPress);
-    btn.addEventListener('touchstart', e => { e.preventDefault(); startLongPress(); });
-    btn.addEventListener('mouseup', cancelLongPress);
-    btn.addEventListener('mouseleave', cancelLongPress);
-    btn.addEventListener('touchend', cancelLongPress);
-    btn.addEventListener('touchcancel', cancelLongPress);
+    b.addEventListener('touchstart', e => { e.preventDefault(); start(); });
+    b.addEventListener('touchend', stop);
+    b.addEventListener('touchcancel', stop);
+    b.addEventListener('mousedown', start);
+    b.addEventListener('mouseup', stop);
+    b.addEventListener('mouseleave', stop);
   }
 });
 
-// Załaduj JSZip
-const script = document.createElement('script');
-script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
-document.head.appendChild(script);
+// JSZip
+const js = document.createElement('script');
+js.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+document.head.appendChild(js);
 
-show('0');
+p('0');
 </script>
 </body>
+</html>
 </html>
