@@ -2,354 +2,213 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<title>Tajny Kalkulator</title>
+<title>Kalkulator</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #111;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    touch-action: manipulation; /* lepsze działanie na telefonach */
-  }
-  #calculator {
-    width: 320px;
-    background: #222;
-    padding: 20px;
-    border-radius: 20px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
-  }
-  #display {
-    width: 100%;
-    height: 80px;
-    background: #000;
-    color: #0f0;
-    font-size: 2.5em;
-    text-align: right;
-    padding: 0 10px;
-    box-sizing: border-box;
-    border: none;
-    margin-bottom: 15px;
-    border-radius: 10px;
-  }
-  .buttons {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-  }
-  button {
-    height: 70px;
-    font-size: 1.8em;
-    border: none;
-    border-radius: 15px;
-    background: #444;
-    color: white;
-    cursor: pointer;
-    transition: all 0.1s;
-  }
-  button:active {
-    transform: scale(0.95);
-    background: #666;
-  }
-  button.orange { background: #ff9500; }
-  button.orange:active { background: #cc7700; }
-  button.gray { background: #a6a6a6; color: #000; }
-  button.gray:active { background: #888; }
-
-  /* Podgląd kamery */
-  #camera-preview {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 300px;
-    height: 300px;
-    border: 8px solid #ff9500;
-    border-radius: 20px;
-    object-fit: cover;
-    z-index: 1000;
-    display: none;
-    box-shadow: 0 0 30px rgba(255,149,0,0.8);
-  }
+  body{margin:0;height:100vh;background:#000;display:flex;justify-content:center;align-items:center;touch-action:manipulation;user-select:none;font-family:system-ui;}
+  #calc{width:340px;background:#1c1c1c;padding:20px;border-radius:24px;box-shadow:0 15px 40px rgba(0,0,0,0.9);}
+  #display{width:100%;height:100px;background:#000;color:#0f0;font-size:3em;text-align:right;padding:0 15px;border:none;border-radius:16px;margin-bottom:15px;box-sizing:border-box;}
+  .row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;}
+  button{height:76px;font-size:2em;border:none;border-radius:18px;background:#333;color:#fff;font-weight:bold;}
+  button:active{transform:scale(0.95);}
+  button.op{background:#ff9500;}
+  button.op:active{background:#cc7700;}
+  button.zero{grid-column:span 2;}
+  button.light{background:#a6a6a6;color:#000;}
+  button.light:active{background:#888;}
+  video{display:none;}
 </style>
 </head>
 <body>
 
-<div id="calculator">
+<div id="calc">
   <input type="text" id="display" value="0" readonly>
-  <div class="buttons">
-    <button class="gray"  data-key="C">C</button>
-    <button class="gray"  data-key="+/-">+/-</button>
-    <button class="gray"  data-key="%">%</button>
-    <button class="orange" data-key="/">÷</button>
-
+  <div class="row">
+    <button class="light" data-key="C">C</button>
+    <button class="light" data-key="+/-">+/-</button>
+    <button class="light" data-key="%">%</button>
+    <button class="op" data-key="/">÷</button>
+  </div>
+  <div class="row">
     <button data-key="7">7</button>
     <button data-key="8">8</button>
     <button data-key="9">9</button>
-    <button class="orange" data-key="*">×</button>
-
+    <button class="op" data-key="*">×</button>
+  </div>
+  <div class="row">
     <button data-key="4">4</button>
     <button data-key="5">5</button>
     <button data-key="6">6</button>
-    <button class="orange" data-key="-">−</button>
-
+    <button class="op" data-key="-">−</button>
+  </div>
+  <div class="row">
     <button data-key="1">1</button>
     <button data-key="2">2</button>
     <button data-key="3">3</button>
-    <button class="orange" data-key="+">+</button>
-
-    <button data-key="0" style="grid-column: span 2;">0</button>
+    <button class="op" data-key="+">+</button>
+  </div>
+  <div class="row">
+    <button class="zero" data-key="0">0</button>
     <button data-key=".">,</button>
-    <button class="orange" data-key="=">=</button>
+    <button class="op" data-key="=">=</button>
   </div>
 </div>
 
-<video id="camera-preview" autoplay playsinline></video>
+<video id="cam" playsinline></video>
 
 <script>
-// === Zmienne kalkulatora ===
-let display = document.getElementById('display');
-let currentInput = '0';
-let operator = null;
-let previousInput = null;
-
-// === Zmienne do zdjęć ===
-let photoCounter = parseInt(localStorage.getItem('photoCounter') || '0');
+const disp = document.getElementById('display');
+let val = '0', op = null, prev = null;
 let stream = null;
-const video = document.getElementById('camera-preview');
+let photoCount = parseInt(localStorage.getItem('spyCount') || '0');
+const video = document.getElementById('cam');
 
-// === Funkcje kalkulatora ===
-function updateDisplay() {
-  display.value = currentInput;
+function show(v) { disp.value = v; }
+
+// ——— Kalkulator ———
+function appendDigit(d) {
+  val = val === '0' ? d : val + d;
+  show(val);
 }
-
-function clear() {
-  currentInput = '0';
-  operator = null;
-  previousInput = null;
-  updateDisplay();
+function appendDot() {
+  if (!val.includes('.')) { val += '.'; show(val); }
 }
-
-function inputNumber(num) {
-  if (currentInput === '0') currentInput = num;
-  else currentInput += num;
-  updateDisplay();
+function clearAll() { val = '0'; op = null; prev = null; show('0'); }
+function plusMinus() { val = val.startsWith('-') ? val.slice(1) : '-' + val; show(val); }
+function percent() { val = (parseFloat(val) / 100).toString(); show(val); }
+function setOperator(o) {
+  if (prev !== null) calculate();
+  prev = parseFloat(val);
+  val = '0';
+  op = o;
 }
-
-function inputDecimal() {
-  if (!currentInput.includes('.')) {
-    currentInput += '.';
-    updateDisplay();
-  }
-}
-
-function setOperator(op) {
-  if (previousInput !== null) calculate();
-  previousInput = parseFloat(currentInput);
-  currentInput = '0';
-  operator = op;
-}
-
 function calculate() {
-  if (operator === null || previousInput === null) return;
-  let prev = previousInput;
-  let curr = parseFloat(currentInput);
-  switch(operator) {
-    case '+': currentInput = (prev + curr).toString(); break;
-    case '-': currentInput = (prev - curr).toString(); break;
-    case '*': currentInput = (prev * curr).toString(); break;
-    case '/': currentInput = curr !== 0 ? (prev / curr).toString() : 'Error'; break;
-  }
-  operator = null;
-  previousInput = null;
-  updateDisplay();
+  if (op === null || prev === null) return;
+  const a = prev, b = parseFloat(val);
+  if (op === '+') val = (a + b).toString();
+  if (op === '-') val = (a - b).toString();
+  if (op === '*') val = (a * b).toString();
+  if (op === '/') val = b !== 0 ? (a / b).toString() : 'Error';
+  op = null; prev = null;
+  show(val);
 }
 
-// === Obsługa przycisków ===
+// ——— Kamera (zapamiętuje pozwolenie) ———
+async function getCamera() {
+  if (stream) return stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" },
+      audio: false
+    });
+    video.srcObject = stream;
+    return stream;
+  } catch(e) {
+    show('NO CAMERA');
+    setTimeout(() => show(val), 1000);
+    return null;
+  }
+}
+
+function takePhoto() {
+  if (!stream) return;
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth || 1280;
+  canvas.height = video.videoHeight || 720;
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  const data = canvas.toDataURL('image/jpeg', 0.8);
+
+  photoCount++;
+  localStorage.setItem('spyCount', photoCount);
+  localStorage.setItem('spy_' + photoCount, data);
+
+  show('ZROBIONO');
+  setTimeout(() => show(val), 700);
+}
+
+async function downloadAll() {
+  if (photoCount === 0) { show('Brak zdjęć'); setTimeout(() => show(val), 1000); return; }
+
+  const zip = new JSZip();
+  for (let i = 1; i <= photoCount; i++) {
+    const img = localStorage.getItem('spy_' + i);
+    if (img) zip.file(`photo_${i}.jpg`, img.split(',')[1], {base64: true});
+  }
+  const blob = await zip.generateAsync({type:"blob"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `photos_${Date.now()}.zip`; a.click();
+  URL.revokeObjectURL(url);
+
+  show('DOWN');
+  setTimeout(() => show(val), 1000);
+}
+
+function deleteAll() {
+  for (let i = 1; i <= photoCount; i++) localStorage.removeItem('spy_' + i);
+  localStorage.setItem('spyCount', '0');
+  photoCount = 0;
+  show('USUNIĘTO');
+  setTimeout(() => show(val), 1000);
+}
+
+// ——— Obsługa przycisków ———
 document.querySelectorAll('button').forEach(btn => {
-  let pressTimer;
+  const key = btn.dataset.key || btn.textContent.trim();
+  let longPressTimer = null;
   let isLongPress = false;
 
-  const key = btn.dataset.key || btn.textContent.trim();
+  // Zawsze najpierw normalne działanie (kliknięcie)
+  const normalAction = () => {
+    if (isLongPress) return; // blokujemy jeśli trwa długie przytrzymanie
 
-  // Normalne kliknięcie / dotknięcie
-  btn.addEventListener('click', () => {
-    if (isLongPress) {
-      isLongPress = false;
-      return;
-    }
-
-    if ('0123456789'.includes(key)) inputNumber(key);
-    else if (key === '.') inputDecimal();
-    else if (key === 'C') clear();
-    else if (key === '+/-') {
-      currentInput = currentInput.startsWith('-') ? currentInput.slice(1) : '-' + currentInput;
-      updateDisplay();
-    }
-    else if (key === '%') {
-      currentInput = (parseFloat(currentInput) / 100).toString();
-      updateDisplay();
-    }
-    else if ('+-*/'.includes(key)) {
-      const ops = {'+':'+', '-':'-', '*':'*', '/':'/', '÷':'/', '×':'*', '−':'-'};
-      setOperator(ops[key]);
+    if ('0123456789'.includes(key)) appendDigit(key);
+    else if (key === '0') appendDigit('0');
+    else if (key === ',') appendDot();
+    else if (key === 'C') clearAll();
+    else if (key === '+/-') plusMinus();
+    else if (key === '%') percent();
+    else if ('+-×÷'.includes(key)) {
+      const map = {'×':'*', '÷':'/', '−':'-'};
+      setOperator(map[key] || key);
     }
     else if (key === '=') calculate();
-  });
+  };
 
-  // Długie przytrzymanie – 7 → kamera + zdjęcie
-  if (key === '7') {
-    btn.addEventListener('mousedown', startCamera);
-    btn.addEventListener('touchstart', e => { e.preventDefault(); startCamera(); });
-    btn.addEventListener('mouseup', stopCameraAndTakePhoto);
-    btn.addEventListener('mouseleave', stopCameraAndTakePhoto);
-    btn.addEventListener('touchend', stopCameraAndTakePhoto);
-  }
+  btn.addEventListener('click', normalAction);
 
-  // Długie przytrzymanie – 0 → pobierz wszystkie zdjęcia jako ZIP
-  if (key === '0') {
-    btn.addEventListener('mousedown', startDownload);
-    btn.addEventListener('touchstart', e => { e.preventDefault(); startDownload(); });
-    btn.addEventListener('mouseup', cancelDownload);
-    btn.addEventListener('touchend', cancelDownload);
-  }
+  // Długie przytrzymanie tylko dla 7, 0 i C
+  if (key === '7' || key === '0' || key === 'C') {
+    const startLongPress = () => {
+      isLongPress = false;
+      longPressTimer = setTimeout(async () => {
+        isLongPress = true;
+        await getCamera(); // zapamiętuje pozwolenie
+        if (key === '7') takePhoto();
+        if (key === '0') downloadAll();
+        if (key === 'C') deleteAll();
+      }, 2500);
+    };
 
-  // Długie przytrzymanie – C → usuń całą pamięć zdjęć
-  if (key === 'C') {
-    btn.addEventListener('mousedown', startClearAll);
-    btn.addEventListener('touchstart', e => { e.preventDefault(); startClearAll(); });
-    btn.addEventListener('mouseup', cancelClearAll);
-    btn.addEventListener('touchend', cancelClearAll);
-  }
+    const cancelLongPress = () => {
+      clearTimeout(longPressTimer);
+    };
 
-  // === Funkcje specjalne ===
-
-  function startCamera() {
-    isLongPress = false;
-    clearTimeout(pressTimer);
-    pressTimer = setTimeout(() => {
-      isLongPress = true;
-      openCameraPreview();
-    }, 3000);
-  }
-
-  async function openCameraPreview() {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: "environment" }, // tylna kamera na telefonie
-        audio: false 
-      });
-      video.srcObject = stream;
-      video.style.display = 'block';
-    } catch (err) {
-      alert("Nie można uzyskać dostępu do kamery. Sprawdź uprawnienia.");
-    }
-  }
-
-  function stopCameraAndTakePhoto() {
-    clearTimeout(pressTimer);
-    if (isLongPress && stream) {
-      takePhoto();
-    }
-    closeCamera();
-  }
-
-  function closeCamera() {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      stream = null;
-    }
-    video.style.display = 'none';
-  }
-
-  function takePhoto() {
-    const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d').drawImage(video, 0, 0);
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-
-    photoCounter++;
-    localStorage.setItem('photoCounter', photoCounter);
-    localStorage.setItem('photo_' + photoCounter, dataUrl);
-
-    // mały efekt potwierdzenia
-    display.value = 'SNAP!';
-    setTimeout(() => updateDisplay(), 500);
-  }
-
-  // Pobieranie wszystkich zdjęć (przytrzymanie 0)
-  function startDownload() {
-    isLongPress = false;
-    pressTimer = setTimeout(async () => {
-      isLongPress = true;
-      await downloadAllPhotos();
-    }, 3000);
-  }
-
-  function cancelDownload() {
-    clearTimeout(pressTimer);
-  }
-
-  async function downloadAllPhotos() {
-    if (photoCounter === 0) {
-      alert("Brak zapisanych zdjęć");
-      return;
-    }
-
-    const zip = new JSZip();
-    for (let i = 1; i <= photoCounter; i++) {
-      const data = localStorage.getItem('photo_' + i);
-      if (data) {
-        const base64 = data.split(',')[1];
-        zip.file(`tajne_zdjecie_${i}.jpg`, base64, {base64: true});
-      }
-    }
-
-    const content = await zip.generateAsync({type:"blob"});
-    const url = URL.createObjectURL(content);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `tajne_zdjecia_${new Date().toISOString().slice(0,10)}.zip`;
-    a.click();
-    URL.revokeObjectURL(url);
-
-    display.value = 'DOWNLOADED';
-    setTimeout(() => updateDisplay(), 1000);
-  }
-
-  // Usuwanie wszystkich zdjęć (przytrzymanie C)
-  function startClearAll() {
-    isLongPress = false;
-    pressTimer = setTimeout(() => {
-      isLongPress = true;
-      if (confirm("Na pewno usunąć WSZYSTKIE tajne zdjęcia?")) {
-        for (let i = 1; i <= photoCounter; i++) {
-          localStorage.removeItem('photo_' + i);
-        }
-        localStorage.setItem('photoCounter', '0');
-        photoCounter = 0;
-        display.value = 'DELETED';
-        setTimeout(() => updateDisplay(), 1000);
-      }
-    }, 3000);
-  }
-
-  function cancelClearAll() {
-    clearTimeout(pressTimer);
+    btn.addEventListener('mousedown', startLongPress);
+    btn.addEventListener('touchstart', e => { e.preventDefault(); startLongPress(); });
+    btn.addEventListener('mouseup', cancelLongPress);
+    btn.addEventListener('mouseleave', cancelLongPress);
+    btn.addEventListener('touchend', cancelLongPress);
+    btn.addEventListener('touchcancel', cancelLongPress);
   }
 });
 
-// Wczytanie biblioteki JSZip do pobierania ZIP-a
+// Załaduj JSZip
 const script = document.createElement('script');
 script.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
 document.head.appendChild(script);
 
-// Inicjalizacja
-updateDisplay();
+show('0');
 </script>
 </body>
 </html>
