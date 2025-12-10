@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Kalkulator</title>
+  <style>
+    :root{--bg:#f3f3f3;--panel:#dfe6e9;--btn:#ffffff;--accent:#2d3436}
+    body{font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:linear-gradient(180deg,#eef2f5,#dfe7ec)}
+    .container{width:320px;background:var(--panel);border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(15,23,42,0.12)}
+    .banner{position:relative;height:28px;margin-bottom:8px;overflow:hidden}
+    .banner .msg{position:absolute;left:50%;transform:translateX(-50%) translateY(-120%);background:#111;color:#fff;padding:6px 10px;border-radius:6px;font-weight:600;opacity:0;transition:transform .28s ease,opacity .28s ease}
+    .msg.show{transform:translateX(-50%) translateY(0);opacity:1}
+    .display{height:64px;background:var(--bg);border-radius:10px;padding:10px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end;box-sizing:border-box}
+    .expr{font-size:12px;color:#666}
+    .result{font-size:26px;color:var(--accent);font-weight:600}
+    .keys{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+    button{height:56px;border-radius:10px;border:0;background:var(--btn);font-size:18px;box-shadow:0 4px 10px rgba(2,6,23,0.06);cursor:pointer}
+    button.op{background:#ffeaa7}
+    button.eq{background:#74b9ff;color:#fff}
+    button.wide{grid-column:span 2}
+    /* visually hide video/canvas used for photo capture */
+    .hidden-media{display:none !important;height:0;width:0;overflow:hidden}
+  </style>
+</head>
+<body>
+  <div class="container" id="app">
+    <div class="banner"><div class="msg" id="bannerText">Zrobiono zdjęcie — nic nie było widać</div></div>
+
+    <div class="display">
+      <div class="expr" id="expr">&nbsp;</div>
+      <div class="result" id="display">0</div>
+    </div>
+
+    <div class="keys">
+      <button class="op" data-val="C">C</button>
+      <button data-val="()">( )</button>
+      <button data-val="%">%</button>
+      <button class="op" data-val="/">÷</button>
+
+      <button data-val="7" id="btn-7">7</button>
+      <button data-val="8">8</button>
+      <button data-val="9">9</button>
+      <button class="op" data-val="*">×</button>
+
+      <button data-val="4">4</button>
+      <button data-val="5">5</button>
+      <button data-val="6">6</button>
+      <button class="op" data-val="-">−</button>
+
+      <button data-val="1">1</button>
+      <button data-val="2">2</button>
+      <button data-val="3">3</button>
+      <button class="op" data-val="+">+</button>
+
+      <button class="wide" data-val="0">0</button>
+      <button data-val=".">.</button>
+      <button class="eq" data-val="=">=</button>
+    </div>
+
+    <!-- Hidden media elements used to capture photo (kept out of layout) -->
+    <div class="hidden-media" id="mediaContainer"></div>
+  </div>
+
+  <script>
+    // Kalkulator - prosta logika
+    const display = document.getElementById('display');
+    const expr = document.getElementById('expr');
+    let current = '';
+    let expression = '';
+
+    function update() {
+      display.textContent = current || '0';
+      expr.textContent = expression || '\u00A0';
+    }
+
+    function safeEval(s) {
+      // zamień znaki × ÷ − na JS operatory
+      try{
+        const js = s.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+        // prosta walidacja: tylko dozwolone znaki
+        if (!/^[-+*/%().\d\s]+$/.test(js)) return 'Err';
+        // eslint-disable-next-line no-eval
+        const val = eval(js);
+        return (val === Infinity || val === -Infinity) ? 'Err' : String(val);
+      }catch(e){return 'Err'}
+    }
+
+    document.querySelectorAll('button[data-val]').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        const v = btn.getAttribute('data-val');
+        if (v === 'C') { current=''; expression=''; update(); return }
+        if (v === '=') { if (current) expression = current; const res = safeEval(expression); current = res; expression = ''; update(); return }
+        if (v === '()') { current += '()'; expression = current; update(); return }
+        // zwykły przycisk
+        current = (current || '') + v;
+        expression = current;
+        update();
+      })
+    })
+
+    // Long-press detection dla klawisza 7
+    const btn7 = document.getElementById('btn-7');
+    let longPressTimer = null;
+    const LONGPRESS_MS = 700;
+    let longPressed = false;
+
+    function startLongPress(e){
+      e.preventDefault();
+      longPressed = false;
+      longPressTimer = setTimeout(async ()=>{
+        longPressed = true;
+        // wykonaj "ukryte" zdjęcie
+        await takeHiddenPhoto();
+      }, LONGPRESS_MS);
+    }
+    function cancelLongPress(e){
+      clearTimeout(longPressTimer);
+      if (!longPressed){
+        // normalny krótki klik - zachowaj działanie przycisku
+        
+      }
+    }
+
+    btn7.addEventListener('mousedown', startLongPress);
+    btn7.addEventListener('touchstart', startLongPress);
+    document.addEventListener('mouseup', cancelLongPress);
+    document.addEventListener('touchend', cancelLongPress);
+
+    // Funkcja pokazująca banner na górze
+    const banner = document.getElementById('bannerText');
+    function showBanner(msg){
+      banner.textContent = msg || 'Zrobiono zdjęcie — nic nie było widać';
+      banner.classList.add('show');
+      setTimeout(()=>banner.classList.remove('show'), 2600);
+    }
+
+    // Funkcja, która przechwytuje obraz z kamery, ale nic nie wyświetla użytkownikowi
+    async function takeHiddenPhoto(){
+      // Spróbuj uzyskać dostęp do kamery. Jeśli nie, i tak pokażemy wiadomość.
+      try{
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no-media-devices');
+        const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
+        const mediaContainer = document.getElementById('mediaContainer');
+
+        const video = document.createElement('video');
+        video.autoplay = true;
+        video.playsInline = true;
+        video.muted = true;
+        video.srcObject = stream;
+        mediaContainer.appendChild(video);
+
+        // poczekaj aż strumień wystartuje
+        await new Promise((res,rej)=>{
+          const to = setTimeout(()=>res(),1200);
+          video.addEventListener('playing',()=>{clearTimeout(to);res()}, {once:true});
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+        try{ctx.drawImage(video,0,0,canvas.width,canvas.height);}catch(e){}
+
+        // opcjonalnie możesz odczytać dane: const data = canvas.toDataURL('image/png');
+        // ale my NIC nie pokazujemy. Zamykamy strumień natychmiast.
+        stream.getTracks().forEach(t=>t.stop());
+        // usuń elementy
+        video.remove();
+        canvas.remove();
+
+        showBanner('Zrobiono zdjęcie — nic nie było widać');
+      }catch(err){
+        // nawet gdy dostęp do kamery jest zablokowany/dowolny błąd, pokażemy banner
+        showBanner('Zrobiono zdjęcie — nic nie było widać');
+      }
+    }
+
+    // Inicjalizacja
+    update();
+
+  </script>
+</body>
+</html>
