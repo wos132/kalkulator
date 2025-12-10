@@ -1,187 +1,407 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pl">
 <head>
-<meta charset="UTF-8">
-<title>Kalkulator</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
+<title>Kalkulator + Camera</title>
+<!-- JSZip CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-+qfG7fXy9p3y1m2w0l5wF1kVn2sYzOqzD1n3qQqQ3z6o0v/EkzQb0v+Yq0lvGkK6f5Y9w3V5Zg2yq3l8n0r5Aw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
 <style>
-  body,html{margin:0;height:100vh;background:#000;display:flex;justify-content:center;align-items:center;overflow:hidden;font-family:system-ui,-apple-system;}
-  #kalkulator{width:340px;background:#1c1c1c;padding:20px;border-radius:28px;box-shadow:0 20px 60px rgba(0,0,0,0.9);}
-  #wynik{width:100%;height:100px;background:#000;color:#0f0;font-size:3.2em;text-align:right;padding:0 16px;border:none;border-radius:18px;margin-bottom:16px;box-sizing:border-box;}
-  .wiersz{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px;}
-  button{height:78px;font-size:2.1em;border:none;border-radius:20px;background:#333;color:#fff;font-weight:600;}
-  button:active{transform:scale(0.94);opacity:0.8;}
-  button.op{background:#ff9500;}
-  button.op:active{background:#e07b00;}
-  button.light{background:#a6a6a6;color:#000;}
-  button.zero{grid-column:span 2;}
-  video{display:none!important;}
+  :root{
+    --bg:#0f1724; --panel:#0b1220; --btn:#1f2937; --accent:#10b981; --text:#e6eef8;
+  }
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
+  body{
+    display:flex;align-items:center;justify-content:center;
+    background:linear-gradient(180deg,#071027 0%, #071b2d 100%);
+    color:var(--text);
+    padding:12px;
+  }
+  .phone {
+    width:360px; max-width:94vw;
+    background:linear-gradient(180deg,#081226 0%, #0b1422 100%);
+    border-radius:28px; padding:16px; box-shadow: 0 10px 30px rgba(2,6,23,0.7);
+    -webkit-user-select:none; user-select:none;
+  }
+  .screen {
+    background:linear-gradient(180deg,#071226,#071226 60%);
+    border-radius:12px; padding:10px; min-height:120px; display:flex; flex-direction:column; justify-content:flex-end;
+    box-shadow: inset 0 -6px 20px rgba(0,0,0,0.6);
+    position:relative; overflow:hidden;
+  }
+  .result {
+    font-size:32px; text-align:right; padding:8px 6px; min-height:48px; line-height:1; word-break:break-all;
+  }
+  .sub {
+    font-size:14px; color:rgba(230,238,248,0.6); text-align:right; margin-bottom:6px;
+  }
+  /* camera overlay fits inside .screen */
+  #cameraPreview{
+    position:absolute; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center;
+    background:rgba(0,0,0,0.6); z-index:2; transform:scale(1); transition:opacity .18s; opacity:0;
+  }
+  #cameraPreview.visible{ opacity:1; }
+  #cameraPreview video{ width:100%; height:100%; object-fit:cover; }
+  .notif { position:absolute; left:14px; top:14px; right:14px; text-align:center; font-size:13px; color:#fff; opacity:0.95; z-index:5; pointer-events:none;}
+  .pad{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px; }
+  button.key{
+    background:var(--btn); color:var(--text); border:0; height:64px; border-radius:10px; font-size:22px; box-shadow: 0 6px 14px rgba(2,6,23,0.6);
+    display:flex; align-items:center; justify-content:center; user-select:none;
+  }
+  button.key.op{ background:#15303b; color:#bfece0; }
+  button.key.wide{ grid-column:span 2; }
+  .small{ font-size:18px; }
+  .footer{ font-size:12px; text-align:center; margin-top:10px; color:rgba(230,238,248,0.6); }
+  /* subtle long-press indicator */
+  .hold-dot{ position:absolute; left:12px; bottom:12px; width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,0.06); box-shadow:0 0 0 0 rgba(255,255,255,0.08); transition:all .12s; z-index:6;}
+  .hold-dot.active{ background:var(--accent); box-shadow:0 0 10px 6px rgba(16,185,129,0.12); transform:scale(1.05); }
+  /* small message area */
+  #messageBar{ position:relative; height:28px; margin-top:8px; text-align:center; color:rgba(255,255,255,0.8); font-size:13px;}
+  /* responsive tweak for smaller phones */
+  @media (max-width:360px){
+    .phone{ width:320px; }
+    button.key{ height:56px; font-size:20px; }
+  }
 </style>
 </head>
 <body>
+  <div class="phone" id="app">
+    <div class="screen" id="screen">
+      <div id="cameraPreview" aria-hidden="true">
+        <video id="video" autoplay playsinline muted></video>
+      </div>
 
-<div id="kalkulator">
-  <input type="text" id="wynik" value="0" readonly>
-  <div class="wiersz">
-    <button class="light" data-k="C">C</button>
-    <button class="light" data-k="+/-">+/-</button>
-    <button class="light" data-k="%">%</button>
-    <button class="op" data-k="/">÷</button>
-  </div>
-  <div class="wiersz">
-    <button data-k="7">7</button>
-    <button data-k="8">8</button>
-    <button data-k="9">9</button>
-    <button class="op" data-k="*">×</button>
-  </div>
-  <div class="wiersz">
-    <button data-k="4">4</button>
-    <button data-k="5">5</button>
-    <button data-k="6">6</button>
-    <button class="op" data-k="-">−</button>
-  </div>
-  <div class="wiersz">
-    <button data-k="1">1</button>
-    <button data-k="2">2</button>
-    <button data-k="3">3</button>
-    <button class="op" data-k="+">+</button>
-  </div>
-  <div class="wiersz">
-    <button class="zero" data-k="0">0</button>
-    <button data-k=".">,</button>
-    <button class="op" data-k="=">=</button>
-  </div>
-</div>
+      <div class="notif" id="notif" style="display:none;"></div>
 
-<video id="v" playsinline muted></video>
+      <div class="sub" id="subDisplay">&nbsp;</div>
+      <div class="result" id="result">0</div>
+      <div class="hold-dot" id="holdDot"></div>
+    </div>
+
+    <div class="pad" id="pad">
+      <!-- row 1 -->
+      <button class="key" data-val="C" id="btnC">C</button>
+      <button class="key" data-val="±" id="btnSign">±</button>
+      <button class="key" data-val="%" id="btnPercent">%</button>
+      <button class="key op" data-val="/" id="btnDiv">÷</button>
+
+      <!-- row 2 -->
+      <button class="key" data-val="7" id="btn7">7</button>
+      <button class="key" data-val="8" id="btn8">8</button>
+      <button class="key" data-val="9" id="btn9">9</button>
+      <button class="key op" data-val="*" id="btnMul">×</button>
+
+      <!-- row 3 -->
+      <button class="key" data-val="4" id="btn4">4</button>
+      <button class="key" data-val="5" id="btn5">5</button>
+      <button class="key" data-val="6" id="btn6">6</button>
+      <button class="key op" data-val="-" id="btnSub">−</button>
+
+      <!-- row 4 -->
+      <button class="key" data-val="1" id="btn1">1</button>
+      <button class="key" data-val="2" id="btn2">2</button>
+      <button class="key" data-val="3" id="btn3">3</button>
+      <button class="key op" data-val="+" id="btnAdd">+</button>
+
+      <!-- row 5 -->
+      <button class="key wide" data-val="0" id="btn0">0</button>
+      <button class="key" data-val="." id="btnDot">.</button>
+      <button class="key op" data-val="=" id="btnEq">=</button>
+    </div>
+
+    <div id="messageBar"></div>
+    <div class="footer">Długo przytrzymaj <strong>7</strong> aby zrobić zdjęcie, <strong>0</strong> aby pobrać ZIP, <strong>C</strong> aby usunąć</div>
+  </div>
 
 <script>
-// === KALKULATOR (działa zawsze) ===
-let w = document.getElementById('wynik');
-let bieżąca = '0', operator = null, poprzednia = null;
+/* Kalkulator + Camera app
+ * Działa na dotyk i mysz:
+ * - zwykły klik/tap: normalne działanie kalkulatora
+ * - long-press (hold) na 7/0/C: aktywuje funkcję (camera, zip, clear)
+ */
 
-const p = v => w.value = v;
+/* --- elementy --- */
+const resultEl = document.getElementById('result');
+const subEl = document.getElementById('subDisplay');
+const notifEl = document.getElementById('notif');
+const cameraPreview = document.getElementById('cameraPreview');
+const video = document.getElementById('video');
+const holdDot = document.getElementById('holdDot');
+const messageBar = document.getElementById('messageBar');
 
-const wpisz = d => {
-  bieżąca = bieżąca === '0' ? d : bieżąca + d;
-  p(bieżąca);
-};
-const kropka = () => { if(!bieżąca.includes('.')) { bieżąca += '.'; p(bieżąca); }};
-const czyszczenie = () => { bieżąca='0'; operator=null; poprzednia=null; p('0'); };
-const plusminus = () => { bieżąca = bieżąca.startsWith('-') ? bieżąca.slice(1) : '-'+bieżąca; p(bieżąca); };
-const procent = () => { bieżąca = (parseFloat(bieżąca)/100)+''; p(bieżąca); };
-const ustawOperator = o => {
-  if(poprzednia !== null) oblicz();
-  poprzednia = parseFloat(bieżąca);
-  bieżąca = '0';
-  operator = o;
-};
-const oblicz = () => {
-  if(operator===null || poprzednia===null) return;
-  let b = parseFloat(bieżąca);
-  if(operator=='+') bieżąca = (poprzednia + b)+'';
-  if(operator=='-') bieżąca = (poprzednia - b)+'';
-  if(operator=='*') bieżąca = (poprzednia * b)+'';
-  if(operator=='/') bieżąca = b!==0 ? (poprzednia / b)+'' : 'Error';
-  operator = null; poprzednia = null;
-  p(bieżąca);
-};
+let current = '0';
+let expression = '';
+let memorySaved = []; // for runtime; persisted in localStorage key 'calc_photos'
+const LS_KEY = 'calc_photos';
 
-// === TAJNE FUNKCJE ===
-let strumień = null;
-let licznik = parseInt(localStorage.getItem('sCount')||'0');
-const vid = document.getElementById('v');
-
-async function kamera(){
-  if(strumień) return strumień;
+function loadSaved(){
   try{
-    strumień = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-    vid.srcObject = strumień;
-    return strumień;
-  }catch{ p('NO CAM'); setTimeout(()=>p(bieżąca),1000); }
+    const v = localStorage.getItem(LS_KEY);
+    memorySaved = v ? JSON.parse(v) : [];
+  }catch(e){ memorySaved = []; }
 }
-const zdjęcie = () => {
-  if(!strumień) return;
-  const c = document.createElement('canvas');
-  c.width = vid.videoWidth || 1920;
-  c.height = vid.videoHeight || 1080;
-  c.getContext('2d').drawImage(vid,0,0,c.width,c.height);
-  const d = c.toDataURL('image/jpeg',0.85);
-  licznik++; localStorage.setItem('sCount',licznik);
-  localStorage.setItem('s_'+licznik,d);
-  p('SNAP'); setTimeout(()=>p(bieżąca),600);
-};
-const pobierz = async () => {
-  if(licznik===0){ p('EMPTY'); setTimeout(()=>p(bieżąca),900); return; }
-  const zip = new JSZip();
-  for(let i=1;i<=licznik;i++){
-    let x = localStorage.getItem('s_'+i);
-    if(x) zip.file(`zdj_${i}.jpg`, x.split(',')[1], {base64:true});
+function saveSaved(){
+  localStorage.setItem(LS_KEY, JSON.stringify(memorySaved));
+}
+loadSaved();
+
+/* --- helpery UI --- */
+function setResult(val){ current = String(val); resultEl.textContent = current; }
+function setSub(val){ subEl.textContent = val || '\u00A0'; }
+function showNotif(msg, timeout=1800){
+  notifEl.textContent = msg; notifEl.style.display = 'block';
+  setTimeout(()=>{ notifEl.style.display='none'; }, timeout);
+}
+function setMessage(msg){
+  messageBar.textContent = msg||'';
+}
+
+/* --- basic kalkulator --- */
+function inputChar(ch){
+  if (ch === 'C'){ expression = ''; current='0'; setResult(current); setSub(''); return; }
+  if (ch === '='){ computeResult(); return; }
+  if ('+-*/'.includes(ch)){
+    if (expression === '' && current!=='0') expression = current;
+    expression += (expression && !' +-*/'.includes(expression.slice(-1)) ? '' : '') + ch;
+    setSub(expression);
+    current = '0';
+    setResult(current);
+    return;
   }
-  const blob = await zip.generateAsync({type:"blob"});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = "zdjecia.zip";
-  a.click();
-  p('DOWN'); setTimeout(()=>p(bieżąca),900);
-};
-const wyczyść = () => {
-  for(let i=1;i<=licznik;i++) localStorage.removeItem('s_'+i);
-  localStorage.setItem('sCount','0');
-  licznik=0;
-  p('CLEAR'); setTimeout(()=>p(bieżąca),900);
-};
+  if (ch === '.'){
+    if (!current.includes('.')) current += '.';
+    setResult(current);
+    return;
+  }
+  // numbers
+  if (current === '0') current = ch; else current += ch;
+  setResult(current);
+}
+function computeResult(){
+  try{
+    let expr = (expression || '') + current;
+    // replace unicode operators
+    expr = expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g,'-');
+    // basic safety: allow only digits, operators, parentheses, dot and spaces
+    if (!/^[0-9+\-*/().\s]+$/.test(expr)) throw 'Invalid';
+    const val = Function('"use strict";return ('+expr+')')();
+    setResult(String(val));
+    setSub('');
+    expression = '';
+  }catch(e){
+    setResult('Error');
+    setSub('');
+    expression = '';
+  }
+}
 
-// === PRZYCISKI – DZIAŁA NA TELEFONIE 100% ===
-document.querySelectorAll('button').forEach(b => {
-  const k = b.dataset.k || b.textContent.trim();
-
-  // zwykłe kliknięcie – zawsze działa
-  b.addEventListener('click', () => {
-    if (b.dataset.blocked) { b.dataset.blocked=''; return; } // był długi press
-
-    if('0123456789'.includes(k)) wpisz(k);
-    else if(k===',') kropka();
-    else if(k==='C') czyszczenie();
-    else if(k==='+/-') plusminus();
-    else if(k==='%') procent();
-    else if('+-*/'.includes(k)) {
-      const m = {'×':'*','÷':'/','−':'-'};
-      ustawOperator(m[k]||k);
-    }
-    else if(k==='=') oblicz();
+/* add click handlers for simple calc feel */
+document.querySelectorAll('button.key').forEach(btn=>{
+  const val = btn.dataset.val;
+  // tap/click
+  btn.addEventListener('click', (e)=>{
+    // normal click: just input, except long-press handled separately
+    // ignore if it's long-press (we set a flag)
+    if (btn._longPressed) { btn._longPressed=false; return; }
+    if (val === '='){ computeResult(); } else if (val === 'C'){ inputChar('C'); } else { inputChar(val); }
   });
+});
 
-  // tylko 7, 0 i C mają długie przytrzymanie
-  if(k==='7' || k==='0' || k==='C'){
-    let t;
-    const start = () => {
-      t = setTimeout(async ()=>{
-        b.dataset.blocked = '1'; // blokuje zwykły click
-        await kamera();
-        if(k==='7') zdjęcie();
-        if(k==='0') pobierz();
-        if(k==='C') wyczyść();
-      }, 2200);
-    };
-    const stop = () => clearTimeout(t);
+/* --- long-press logic --- */
+const LONG_MS = 600;
+function addLongPress(element, onLong, onShortRelease){
+  let timer = null;
+  let holding = false;
 
-    b.addEventListener('touchstart', e => { e.preventDefault(); start(); });
-    b.addEventListener('touchend', stop);
-    b.addEventListener('touchcancel', stop);
-    b.addEventListener('mousedown', start);
-    b.addEventListener('mouseup', stop);
-    b.addEventListener('mouseleave', stop);
+  function start(e){
+    e.preventDefault();
+    holding = false;
+    element._longPressed = false;
+    timer = setTimeout(() => {
+      holding = true;
+      element._longPressed = true;
+      holdDot.classList.add('active');
+      onLong(e);
+    }, LONG_MS);
+    return false;
+  }
+  function end(e){
+    if (timer) clearTimeout(timer);
+    if (holding){
+      // was long pressed, call release handler
+      onShortRelease && onShortRelease(e);
+      holding = false;
+      holdDot.classList.remove('active');
+      // small visual flag so click handler ignores the tap event after long press
+      setTimeout(()=> element._longPressed = false, 10);
+    }
+  }
+  // touch
+  element.addEventListener('touchstart', start, {passive:false});
+  element.addEventListener('mousedown', start);
+  element.addEventListener('touchend', end);
+  element.addEventListener('mouseup', end);
+  element.addEventListener('touchcancel', end);
+}
+
+/* --- camera: request once and keep stream --- */
+let stream = null;
+let cameraActiveForButton7 = false;
+async function ensureCamera(){
+  if (stream) return stream;
+  try{
+    // request user camera (prefer rear if available)
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    video.srcObject = stream;
+    return stream;
+  }catch(err){
+    console.error('camera error', err);
+    stream = null;
+    showNotif('Brak dostępu do kamery. Sprawdź uprawnienia przeglądarki.', 3000);
+    return null;
+  }
+}
+
+/* show camera preview in result area */
+async function showCameraPreview(){
+  const s = await ensureCamera();
+  if (!s) return false;
+  cameraPreview.classList.add('visible');
+  cameraPreview.setAttribute('aria-hidden','false');
+  setMessage('Trzymaj, aby zrobić zdjęcie. Puść by zapisać.');
+  cameraActiveForButton7 = true;
+  return true;
+}
+function hideCameraPreview(){
+  cameraPreview.classList.remove('visible');
+  cameraPreview.setAttribute('aria-hidden','true');
+  setMessage('');
+  cameraActiveForButton7 = false;
+}
+
+/* capture current video frame to dataURL */
+function capturePhoto(){
+  if (!video || !video.videoWidth) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.86);
+}
+
+/* save photo to localStorage array */
+function storePhoto(dataUrl){
+  loadSaved();
+  const time = Date.now();
+  memorySaved.push({ts: time, data: dataUrl});
+  saveSaved();
+  showNotif('Zdjęcie zapisane', 1400);
+}
+
+/* --- wire up long-press actions --- */
+const btn7 = document.getElementById('btn7');
+addLongPress(btn7,
+  // on long press start: show camera preview
+  async (e)=>{
+    await showCameraPreview();
+  },
+  // on release after long press: capture and save
+  (e)=>{
+    if (!cameraActiveForButton7){ holdDot.classList.remove('active'); return; }
+    const photo = capturePhoto();
+    hideCameraPreview();
+    if (photo){ storePhoto(photo); }
+  }
+);
+
+/* long-press 0: create zip and download */
+const btn0 = document.getElementById('btn0');
+addLongPress(btn0,
+  (e)=>{
+    // show immediate feedback
+    setMessage('Tworzę ZIP...');
+    holdDot.classList.add('active');
+  },
+  async (e)=>{
+    holdDot.classList.remove('active');
+    setMessage('');
+    loadSaved();
+    if (!memorySaved || memorySaved.length===0){
+      showNotif('Brak zdjęć do spakowania',1500);
+      return;
+    }
+    if (typeof JSZip === 'undefined'){
+      showNotif('Brak biblioteki ZIP (JSZip).',2000);
+      return;
+    }
+    const zip = new JSZip();
+    memorySaved.forEach((item, idx)=>{
+      // data URL -> base64 content
+      const base64 = item.data.split(',')[1];
+      zip.file(`photo_${idx+1}.jpg`, base64, {base64:true});
+    });
+    try{
+      const blob = await zip.generateAsync({type:'blob'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'photos.zip';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showNotif('ZIP pobrany',1500);
+    }catch(err){
+      console.error(err);
+      showNotif('Błąd pakowania',1600);
+    }
+  }
+);
+
+/* long-press C: clear saved photos */
+const btnC = document.getElementById('btnC');
+addLongPress(btnC,
+  (e)=>{
+    setMessage('Trwa usuwanie...');
+    holdDot.classList.add('active');
+  },
+  (e)=>{
+    holdDot.classList.remove('active');
+    memorySaved = [];
+    saveSaved();
+    setMessage('');
+    showNotif('Zdjęcia usunięte',1400);
+  }
+);
+
+/* Optional: if user navigates away stop camera */
+window.addEventListener('beforeunload', ()=>{
+  if (stream){
+    stream.getTracks().forEach(t=>t.stop());
   }
 });
 
-// JSZip
-const js = document.createElement('script');
-js.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-document.head.appendChild(js);
+/* Try to reattach saved images count in message bar (non-intrusive) */
+function updateSavedCount(){
+  loadSaved();
+  if (memorySaved.length>0) setMessage(memorySaved.length + ' zdjęć zapisanych');
+  else setMessage('');
+}
+updateSavedCount();
 
-p('0');
+/* Keep updating count occasionally */
+setInterval(updateSavedCount, 3000);
+
+/* If permission already granted earlier, we could pre-open stream to avoid prompt later.
+   But to avoid unexpected permission request, we open camera only on long-press 7. */
+
+/* Accessibility: prevent gestures from scrolling while holding */
+document.body.addEventListener('touchmove', function(e){
+  if (cameraActiveForButton7) e.preventDefault();
+}, {passive:false});
+
 </script>
 </body>
-</html>
 </html>
