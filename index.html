@@ -3,405 +3,339 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover" />
-<title>Kalkulator + Camera</title>
-<!-- JSZip CDN -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="sha512-+qfG7fXy9p3y1m2w0l5wF1kVn2sYzOqzD1n3qQqQ3z6o0v/EkzQb0v+Yq0lvGkK6f5Y9w3V5Zg2yq3l8n0r5Aw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
+<title>Kalkulator + Camera (poprawione)</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" integrity="" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <style>
-  :root{
-    --bg:#0f1724; --panel:#0b1220; --btn:#1f2937; --accent:#10b981; --text:#e6eef8;
-  }
-  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
-  body{
-    display:flex;align-items:center;justify-content:center;
-    background:linear-gradient(180deg,#071027 0%, #071b2d 100%);
-    color:var(--text);
-    padding:12px;
-  }
-  .phone {
-    width:360px; max-width:94vw;
-    background:linear-gradient(180deg,#081226 0%, #0b1422 100%);
-    border-radius:28px; padding:16px; box-shadow: 0 10px 30px rgba(2,6,23,0.7);
-    -webkit-user-select:none; user-select:none;
-  }
-  .screen {
-    background:linear-gradient(180deg,#071226,#071226 60%);
-    border-radius:12px; padding:10px; min-height:120px; display:flex; flex-direction:column; justify-content:flex-end;
-    box-shadow: inset 0 -6px 20px rgba(0,0,0,0.6);
-    position:relative; overflow:hidden;
-  }
-  .result {
-    font-size:32px; text-align:right; padding:8px 6px; min-height:48px; line-height:1; word-break:break-all;
-  }
-  .sub {
-    font-size:14px; color:rgba(230,238,248,0.6); text-align:right; margin-bottom:6px;
-  }
-  /* camera overlay fits inside .screen */
-  #cameraPreview{
-    position:absolute; left:0; right:0; top:0; bottom:0; display:flex; align-items:center; justify-content:center;
-    background:rgba(0,0,0,0.6); z-index:2; transform:scale(1); transition:opacity .18s; opacity:0;
-  }
-  #cameraPreview.visible{ opacity:1; }
-  #cameraPreview video{ width:100%; height:100%; object-fit:cover; }
-  .notif { position:absolute; left:14px; top:14px; right:14px; text-align:center; font-size:13px; color:#fff; opacity:0.95; z-index:5; pointer-events:none;}
-  .pad{ display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:14px; }
-  button.key{
-    background:var(--btn); color:var(--text); border:0; height:64px; border-radius:10px; font-size:22px; box-shadow: 0 6px 14px rgba(2,6,23,0.6);
-    display:flex; align-items:center; justify-content:center; user-select:none;
-  }
-  button.key.op{ background:#15303b; color:#bfece0; }
-  button.key.wide{ grid-column:span 2; }
-  .small{ font-size:18px; }
-  .footer{ font-size:12px; text-align:center; margin-top:10px; color:rgba(230,238,248,0.6); }
-  /* subtle long-press indicator */
-  .hold-dot{ position:absolute; left:12px; bottom:12px; width:10px; height:10px; border-radius:50%; background:rgba(255,255,255,0.06); box-shadow:0 0 0 0 rgba(255,255,255,0.08); transition:all .12s; z-index:6;}
-  .hold-dot.active{ background:var(--accent); box-shadow:0 0 10px 6px rgba(16,185,129,0.12); transform:scale(1.05); }
-  /* small message area */
-  #messageBar{ position:relative; height:28px; margin-top:8px; text-align:center; color:rgba(255,255,255,0.8); font-size:13px;}
-  /* responsive tweak for smaller phones */
-  @media (max-width:360px){
-    .phone{ width:320px; }
-    button.key{ height:56px; font-size:20px; }
-  }
+  :root{ --bg:#071226; --btn:#1f2937; --op:#15303b; --text:#e6eef8; --accent:#10b981; }
+  html,body{height:100%;margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+  body{display:flex;align-items:center;justify-content:center;background:linear-gradient(180deg,#071027,#071b2d);padding:12px;color:var(--text)}
+  .phone{width:360px;max-width:94vw;border-radius:24px;padding:14px;background:linear-gradient(180deg,#081226,#0b1422);box-shadow:0 10px 30px rgba(2,6,23,0.7)}
+  .screen{background:linear-gradient(180deg,#071226,#071226 60%);border-radius:12px;padding:10px;min-height:120px;display:flex;flex-direction:column;justify-content:flex-end;position:relative;overflow:hidden}
+  .result{font-size:32px;text-align:right;padding:8px 6px;min-height:48px;line-height:1;word-break:break-all}
+  .sub{font-size:14px;color:rgba(230,238,248,0.6);text-align:right;margin-bottom:6px}
+  .pad{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+  button.key{background:var(--btn);color:var(--text);border:0;height:64px;border-radius:10px;font-size:22px;display:flex;align-items:center;justify-content:center;user-select:none;position:relative;overflow:hidden;touch-action:manipulation}
+  button.key.op{background:var(--op);color:#bfece0}
+  button.key.wide{grid-column:span 2}
+  #btnEq{background:linear-gradient(180deg,#0b5a4a,#0a4538);color:#fff}
+  .notif{position:absolute;left:14px;top:14px;right:14px;text-align:center;font-size:13px;color:#fff;opacity:0.95;z-index:5;pointer-events:none;display:none}
+  .hold-dot{position:absolute;left:12px;bottom:12px;width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,0.06);box-shadow:0 0 0 0 rgba(255,255,255,0.08);transition:all .12s;z-index:6}
+  .hold-dot.active{background:var(--accent);box-shadow:0 0 10px 6px rgba(16,185,129,0.12);transform:scale(1.05)}
+  #messageBar{height:28px;margin-top:8px;text-align:center;color:rgba(255,255,255,0.8);font-size:13px}
+  .footer{font-size:12px;text-align:center;margin-top:10px;color:rgba(230,238,248,0.6)}
+  /* camera overlay inside = button */
+  .eq-overlay{position:absolute;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity .12s;z-index:20}
+  .eq-overlay.visible{opacity:1}
+  .eq-overlay video{width:100%;height:100%;object-fit:cover}
+  /* responsive */
+  @media(max-width:360px){.phone{width:320px}button.key{height:56px;font-size:20px}}
 </style>
 </head>
 <body>
   <div class="phone" id="app">
     <div class="screen" id="screen">
-      <div id="cameraPreview" aria-hidden="true">
-        <video id="video" autoplay playsinline muted></video>
-      </div>
-
-      <div class="notif" id="notif" style="display:none;"></div>
-
+      <div class="notif" id="notif"></div>
       <div class="sub" id="subDisplay">&nbsp;</div>
       <div class="result" id="result">0</div>
       <div class="hold-dot" id="holdDot"></div>
     </div>
 
     <div class="pad" id="pad">
-      <!-- row 1 -->
       <button class="key" data-val="C" id="btnC">C</button>
       <button class="key" data-val="±" id="btnSign">±</button>
       <button class="key" data-val="%" id="btnPercent">%</button>
       <button class="key op" data-val="/" id="btnDiv">÷</button>
 
-      <!-- row 2 -->
       <button class="key" data-val="7" id="btn7">7</button>
       <button class="key" data-val="8" id="btn8">8</button>
       <button class="key" data-val="9" id="btn9">9</button>
       <button class="key op" data-val="*" id="btnMul">×</button>
 
-      <!-- row 3 -->
       <button class="key" data-val="4" id="btn4">4</button>
       <button class="key" data-val="5" id="btn5">5</button>
       <button class="key" data-val="6" id="btn6">6</button>
       <button class="key op" data-val="-" id="btnSub">−</button>
 
-      <!-- row 4 -->
       <button class="key" data-val="1" id="btn1">1</button>
       <button class="key" data-val="2" id="btn2">2</button>
       <button class="key" data-val="3" id="btn3">3</button>
       <button class="key op" data-val="+" id="btnAdd">+</button>
 
-      <!-- row 5 -->
+      <!-- = button zawiera overlay z kamerą -->
       <button class="key wide" data-val="0" id="btn0">0</button>
       <button class="key" data-val="." id="btnDot">.</button>
-      <button class="key op" data-val="=" id="btnEq">=</button>
+
+      <button class="key op" data-val="=" id="btnEq">=
+        <div class="eq-overlay" id="eqOverlay" aria-hidden="true">
+          <video id="eqVideo" autoplay playsinline muted></video>
+        </div>
+      </button>
     </div>
 
     <div id="messageBar"></div>
-    <div class="footer">Długo przytrzymaj <strong>7</strong> aby zrobić zdjęcie, <strong>0</strong> aby pobrać ZIP, <strong>C</strong> aby usunąć</div>
+    <div class="footer">Przytrzymaj <strong>7</strong> — podgląd w "=". Puść 7 żeby zapisać. Przytrzymaj <strong>0</strong> — pobierz ZIP. Przytrzymaj <strong>C</strong> — usuń.</div>
   </div>
 
 <script>
-/* Kalkulator + Camera app
- * Działa na dotyk i mysz:
- * - zwykły klik/tap: normalne działanie kalkulatora
- * - long-press (hold) na 7/0/C: aktywuje funkcję (camera, zip, clear)
- */
+/* Poprawiona wersja: pointer events, overlay wewnątrz "=",
+   kompresja zdjęć do max 800px szerokości, limit zdjęć w localStorage.
+*/
 
-/* --- elementy --- */
 const resultEl = document.getElementById('result');
 const subEl = document.getElementById('subDisplay');
 const notifEl = document.getElementById('notif');
-const cameraPreview = document.getElementById('cameraPreview');
-const video = document.getElementById('video');
-const holdDot = document.getElementById('holdDot');
 const messageBar = document.getElementById('messageBar');
+const holdDot = document.getElementById('holdDot');
 
-let current = '0';
-let expression = '';
-let memorySaved = []; // for runtime; persisted in localStorage key 'calc_photos'
-const LS_KEY = 'calc_photos';
+let current='0', expression='';
+
+const LS_KEY='calc_photos_v2';
+const MAX_PHOTOS=30; // maksymalna ilość zdjęć w localStorage
+const MAX_WIDTH=800;  // maksymalna szerokość zapisywanych zdjęć (px)
 
 function loadSaved(){
   try{
     const v = localStorage.getItem(LS_KEY);
-    memorySaved = v ? JSON.parse(v) : [];
-  }catch(e){ memorySaved = []; }
+    return v ? JSON.parse(v) : [];
+  }catch(e){ return []; }
 }
-function saveSaved(){
-  localStorage.setItem(LS_KEY, JSON.stringify(memorySaved));
+function saveSaved(arr){
+  try{
+    localStorage.setItem(LS_KEY, JSON.stringify(arr));
+    return true;
+  }catch(e){
+    console.warn('localStorage quota', e);
+    return false;
+  }
 }
-loadSaved();
+function setResult(v){ current=String(v); resultEl.textContent=current; }
+function setSub(v){ subEl.textContent = v || '\u00A0'; }
+function showNotif(msg, t=1500){ notifEl.textContent=msg; notifEl.style.display='block'; setTimeout(()=>{ notifEl.style.display='none'; }, t); }
+function setMessage(msg){ messageBar.textContent = msg || ''; }
 
-/* --- helpery UI --- */
-function setResult(val){ current = String(val); resultEl.textContent = current; }
-function setSub(val){ subEl.textContent = val || '\u00A0'; }
-function showNotif(msg, timeout=1800){
-  notifEl.textContent = msg; notifEl.style.display = 'block';
-  setTimeout(()=>{ notifEl.style.display='none'; }, timeout);
-}
-function setMessage(msg){
-  messageBar.textContent = msg||'';
-}
-
-/* --- basic kalkulator --- */
+/* Kalkulator prosty */
 function inputChar(ch){
-  if (ch === 'C'){ expression = ''; current='0'; setResult(current); setSub(''); return; }
-  if (ch === '='){ computeResult(); return; }
+  if (ch==='C'){ expression=''; current='0'; setResult(current); setSub(''); return; }
+  if (ch==='='){ computeResult(); return; }
   if ('+-*/'.includes(ch)){
-    if (expression === '' && current!=='0') expression = current;
-    expression += (expression && !' +-*/'.includes(expression.slice(-1)) ? '' : '') + ch;
+    if (expression==='' && current!=='0') expression = current;
+    expression += ch;
     setSub(expression);
-    current = '0';
+    current='0';
     setResult(current);
     return;
   }
-  if (ch === '.'){
+  if (ch==='.'){
     if (!current.includes('.')) current += '.';
     setResult(current);
     return;
   }
-  // numbers
-  if (current === '0') current = ch; else current += ch;
+  if (current==='0') current = ch; else current += ch;
   setResult(current);
 }
 function computeResult(){
   try{
-    let expr = (expression || '') + current;
-    // replace unicode operators
-    expr = expr.replace(/×/g, '*').replace(/÷/g, '/').replace(/−/g,'-');
-    // basic safety: allow only digits, operators, parentheses, dot and spaces
+    let expr = (expression||'') + current;
+    expr = expr.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
     if (!/^[0-9+\-*/().\s]+$/.test(expr)) throw 'Invalid';
     const val = Function('"use strict";return ('+expr+')')();
     setResult(String(val));
     setSub('');
-    expression = '';
+    expression='';
   }catch(e){
-    setResult('Error');
-    setSub('');
-    expression = '';
+    setResult('Error'); setSub(''); expression='';
   }
 }
 
-/* add click handlers for simple calc feel */
+/* kliknięcia zwykłe */
 document.querySelectorAll('button.key').forEach(btn=>{
   const val = btn.dataset.val;
-  // tap/click
   btn.addEventListener('click', (e)=>{
-    // normal click: just input, except long-press handled separately
-    // ignore if it's long-press (we set a flag)
-    if (btn._longPressed) { btn._longPressed=false; return; }
-    if (val === '='){ computeResult(); } else if (val === 'C'){ inputChar('C'); } else { inputChar(val); }
+    // jeżeli przycisk został long-pressed to ignorujemy click (ustawiamy flagę)
+    if (btn._longHandled){ btn._longHandled=false; return; }
+    if (val==='='){ computeResult(); } else if (val==='C'){ inputChar('C'); } else { inputChar(val); }
   });
 });
 
-/* --- long-press logic --- */
-const LONG_MS = 600;
-function addLongPress(element, onLong, onShortRelease){
-  let timer = null;
-  let holding = false;
+/* Long-press z pointer events - działa na telefonach i desktopzie */
+const LONG_MS=600;
+function addLongPressWithPointer(buttonEl, onLongStart, onLongRelease){
+  let timer=null;
+  let longActive=false;
+  let pointerId=null;
 
-  function start(e){
-    e.preventDefault();
-    holding = false;
-    element._longPressed = false;
-    timer = setTimeout(() => {
-      holding = true;
-      element._longPressed = true;
+  function down(e){
+    // ignoruj jeśli inny pointer działa
+    if (pointerId !== null) return;
+    pointerId = e.pointerId;
+    buttonEl.setPointerCapture(pointerId);
+    buttonEl._longHandled = false;
+    longActive=false;
+    timer = setTimeout(()=>{
+      longActive = true;
+      buttonEl._longHandled = true;
       holdDot.classList.add('active');
-      onLong(e);
+      onLongStart(e);
     }, LONG_MS);
-    return false;
+    e.preventDefault();
   }
-  function end(e){
+  function up(e){
+    if (e.pointerId !== pointerId) return;
     if (timer) clearTimeout(timer);
-    if (holding){
-      // was long pressed, call release handler
-      onShortRelease && onShortRelease(e);
-      holding = false;
+    try{ buttonEl.releasePointerCapture(pointerId); }catch(_){}
+    pointerId = null;
+    if (longActive){
+      longActive=false;
       holdDot.classList.remove('active');
-      // small visual flag so click handler ignores the tap event after long press
-      setTimeout(()=> element._longPressed = false, 10);
+      onLongRelease(e);
     }
   }
-  // touch
-  element.addEventListener('touchstart', start, {passive:false});
-  element.addEventListener('mousedown', start);
-  element.addEventListener('touchend', end);
-  element.addEventListener('mouseup', end);
-  element.addEventListener('touchcancel', end);
+  function cancel(e){
+    if (e.pointerId !== pointerId) return;
+    if (timer) clearTimeout(timer);
+    try{ buttonEl.releasePointerCapture(pointerId); }catch(_){}
+    pointerId=null;
+    if (longActive){ longActive=false; holdDot.classList.remove('active'); }
+  }
+  buttonEl.addEventListener('pointerdown', down);
+  buttonEl.addEventListener('pointerup', up);
+  buttonEl.addEventListener('pointercancel', cancel);
+  buttonEl.addEventListener('pointerleave', cancel);
 }
 
-/* --- camera: request once and keep stream --- */
+/* Kamera: streaming do video wewnątrz przycisku '=' */
+const eqOverlay = document.getElementById('eqOverlay');
+const eqVideo = document.getElementById('eqVideo');
 let stream = null;
-let cameraActiveForButton7 = false;
 async function ensureCamera(){
   if (stream) return stream;
   try{
-    // request user camera (prefer rear if available)
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
-    video.srcObject = stream;
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio:false });
+    eqVideo.srcObject = stream;
     return stream;
   }catch(err){
-    console.error('camera error', err);
-    stream = null;
-    showNotif('Brak dostępu do kamery. Sprawdź uprawnienia przeglądarki.', 3000);
+    console.error('camera err', err);
+    stream=null;
+    showNotif('Nie można uzyskać kamery. Sprawdź uprawnienia.', 2500);
     return null;
   }
 }
-
-/* show camera preview in result area */
-async function showCameraPreview(){
+async function showEqPreview(){
   const s = await ensureCamera();
   if (!s) return false;
-  cameraPreview.classList.add('visible');
-  cameraPreview.setAttribute('aria-hidden','false');
-  setMessage('Trzymaj, aby zrobić zdjęcie. Puść by zapisać.');
-  cameraActiveForButton7 = true;
+  eqOverlay.classList.add('visible');
+  eqOverlay.setAttribute('aria-hidden','false');
+  setMessage('Trzymaj 7 -> puść aby zapisać');
   return true;
 }
-function hideCameraPreview(){
-  cameraPreview.classList.remove('visible');
-  cameraPreview.setAttribute('aria-hidden','true');
+function hideEqPreview(){
+  eqOverlay.classList.remove('visible');
+  eqOverlay.setAttribute('aria-hidden','true');
   setMessage('');
-  cameraActiveForButton7 = false;
 }
 
-/* capture current video frame to dataURL */
-function capturePhoto(){
-  if (!video || !video.videoWidth) return null;
+/* capture and compress */
+function captureCompressedDataUrl(videoEl){
+  if (!videoEl || !videoEl.videoWidth) return null;
+  const w = videoEl.videoWidth;
+  const h = videoEl.videoHeight;
+  const scale = Math.min(1, MAX_WIDTH / w);
+  const cw = Math.round(w * scale);
+  const ch = Math.round(h * scale);
   const canvas = document.createElement('canvas');
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  canvas.width = cw; canvas.height = ch;
   const ctx = canvas.getContext('2d');
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', 0.86);
+  ctx.drawImage(videoEl, 0, 0, cw, ch);
+  // quality 0.8 - balans rozmiar/jakość
+  return canvas.toDataURL('image/jpeg', 0.8);
 }
 
-/* save photo to localStorage array */
+/* save with rotation? (we skip EXIF rotation to keep it simple) */
 function storePhoto(dataUrl){
-  loadSaved();
-  const time = Date.now();
-  memorySaved.push({ts: time, data: dataUrl});
-  saveSaved();
-  showNotif('Zdjęcie zapisane', 1400);
+  if (!dataUrl) return false;
+  const arr = loadSaved();
+  // limit zdjęć
+  if (arr.length >= MAX_PHOTOS){
+    // usuń najstarsze
+    arr.shift();
+  }
+  arr.push({ts:Date.now(), data:dataUrl});
+  const ok = saveSaved(arr);
+  if (!ok){
+    showNotif('Brak miejsca w localStorage. Usuń zdjęcia.', 2500);
+    return false;
+  }
+  showNotif('Zdjęcie zapisane', 1200);
+  return true;
 }
 
-/* --- wire up long-press actions --- */
+/* long-press 7: show preview inside =, release -> capture & save */
 const btn7 = document.getElementById('btn7');
-addLongPress(btn7,
-  // on long press start: show camera preview
+addLongPressWithPointer(btn7,
   async (e)=>{
-    await showCameraPreview();
+    await showEqPreview();
   },
-  // on release after long press: capture and save
   (e)=>{
-    if (!cameraActiveForButton7){ holdDot.classList.remove('active'); return; }
-    const photo = capturePhoto();
-    hideCameraPreview();
-    if (photo){ storePhoto(photo); }
+    // on release after long press
+    if (!stream){ hideEqPreview(); return; }
+    const data = captureCompressedDataUrl(eqVideo);
+    hideEqPreview();
+    if (data) storePhoto(data);
   }
 );
 
-/* long-press 0: create zip and download */
+/* long-press 0: create zip from saved */
 const btn0 = document.getElementById('btn0');
-addLongPress(btn0,
-  (e)=>{
-    // show immediate feedback
-    setMessage('Tworzę ZIP...');
-    holdDot.classList.add('active');
-  },
+addLongPressWithPointer(btn0,
+  (e)=>{ setMessage('Tworzę ZIP...'); holdDot.classList.add('active'); },
   async (e)=>{
-    holdDot.classList.remove('active');
-    setMessage('');
-    loadSaved();
-    if (!memorySaved || memorySaved.length===0){
-      showNotif('Brak zdjęć do spakowania',1500);
-      return;
-    }
-    if (typeof JSZip === 'undefined'){
-      showNotif('Brak biblioteki ZIP (JSZip).',2000);
-      return;
-    }
+    holdDot.classList.remove('active'); setMessage('');
+    const arr = loadSaved();
+    if (!arr || arr.length===0){ showNotif('Brak zdjęć do pobrania',1400); return; }
+    if (typeof JSZip === 'undefined'){ showNotif('JSZip brak',1400); return; }
     const zip = new JSZip();
-    memorySaved.forEach((item, idx)=>{
-      // data URL -> base64 content
-      const base64 = item.data.split(',')[1];
-      zip.file(`photo_${idx+1}.jpg`, base64, {base64:true});
+    arr.forEach((it, idx)=>{
+      const b64 = it.data.split(',')[1];
+      zip.file(`photo_${idx+1}.jpg`, b64, {base64:true});
     });
     try{
       const blob = await zip.generateAsync({type:'blob'});
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
-      a.download = 'photos.zip';
+      a.href = url; a.download = 'photos.zip';
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-      showNotif('ZIP pobrany',1500);
+      showNotif('ZIP pobrany',1400);
     }catch(err){
-      console.error(err);
-      showNotif('Błąd pakowania',1600);
+      console.error(err); showNotif('Błąd przy tworzeniu ZIP',1500);
     }
   }
 );
 
-/* long-press C: clear saved photos */
+/* long-press C: clear */
 const btnC = document.getElementById('btnC');
-addLongPress(btnC,
+addLongPressWithPointer(btnC,
+  (e)=>{ setMessage('Usuwam...'); holdDot.classList.add('active'); },
   (e)=>{
-    setMessage('Trwa usuwanie...');
-    holdDot.classList.add('active');
-  },
-  (e)=>{
-    holdDot.classList.remove('active');
-    memorySaved = [];
-    saveSaved();
-    setMessage('');
-    showNotif('Zdjęcia usunięte',1400);
+    holdDot.classList.remove('active'); setMessage('');
+    saveSaved([]); showNotif('Zdjęcia usunięte',1200);
   }
 );
 
-/* Optional: if user navigates away stop camera */
-window.addEventListener('beforeunload', ()=>{
-  if (stream){
-    stream.getTracks().forEach(t=>t.stop());
-  }
-});
-
-/* Try to reattach saved images count in message bar (non-intrusive) */
+/* update saved count */
 function updateSavedCount(){
-  loadSaved();
-  if (memorySaved.length>0) setMessage(memorySaved.length + ' zdjęć zapisanych');
-  else setMessage('');
+  const arr = loadSaved();
+  if (arr.length>0) setMessage(arr.length+' zdjęć zapisanych'); else setMessage('');
 }
 updateSavedCount();
+setInterval(updateSavedCount,3000);
 
-/* Keep updating count occasionally */
-setInterval(updateSavedCount, 3000);
-
-/* If permission already granted earlier, we could pre-open stream to avoid prompt later.
-   But to avoid unexpected permission request, we open camera only on long-press 7. */
-
-/* Accessibility: prevent gestures from scrolling while holding */
-document.body.addEventListener('touchmove', function(e){
-  if (cameraActiveForButton7) e.preventDefault();
-}, {passive:false});
-
+/* stop camera on unload */
+window.addEventListener('beforeunload', ()=>{
+  if (stream){ stream.getTracks().forEach(t=>t.stop()); }
+});
 </script>
 </body>
 </html>
