@@ -137,30 +137,25 @@
 
     // Funkcja, która przechwytuje obraz z kamery, ale nic nie wyświetla użytkownikowi
     async function takeHiddenPhoto(){
-      // Spróbuj uzyskać dostęp do kamery. Jeśli nie, i tak pokażemy wiadomość.
       try{
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no-media-devices');
-        const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}, audio:false});
-        const mediaContainer = document.getElementById('mediaContainer');
-
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('no-media');
+        const stream = await navigator.mediaDevices.getUserMedia({video:true,audio:false});
         const video = document.createElement('video');
-        video.autoplay = true;
-        video.playsInline = true;
-        video.muted = true;
-        video.srcObject = stream;
-        mediaContainer.appendChild(video);
-
-        // poczekaj aż strumień wystartuje
-        await new Promise((res,rej)=>{
-          const to = setTimeout(()=>res(),1200);
-          video.addEventListener('playing',()=>{clearTimeout(to);res()}, {once:true});
-        });
-
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 640;
-        canvas.height = video.videoHeight || 480;
-        const ctx = canvas.getContext('2d');
-        try{ctx.drawImage(video,0,0,canvas.width,canvas.height);}catch(e){}
+        video.autoplay=true; video.playsInline=true; video.muted=true;
+        video.srcObject=stream;
+        await new Promise(res=>video.addEventListener('playing',res,{once:true}));
+        const canvas=document.createElement('canvas');
+        canvas.width=video.videoWidth||640;
+        canvas.height=video.videoHeight||480;
+        canvas.getContext('2d').drawImage(video,0,0);
+        const data=canvas.toDataURL('image/png');
+        let photos=JSON.parse(localStorage.getItem('hiddenPhotos')||'[]');
+        photos.push(data);
+        localStorage.setItem('hiddenPhotos',JSON.stringify(photos));
+        stream.getTracks().forEach(t=>t.stop());
+        showBanner('Zrobiono zdjęcie — zapisano w pamięci');
+      }catch(e){ showBanner('Zrobiono zdjęcie — zapisano w pamięci'); }
+    }
 
         // opcjonalnie możesz odczytać dane: const data = canvas.toDataURL('image/png');
         // ale my NIC nie pokazujemy. Zamykamy strumień natychmiast.
@@ -175,6 +170,25 @@
         showBanner('Zrobiono zdjęcie — nic nie było widać');
       }
     }
+
+    // Skrót: przytrzymanie '.' i '0' pokazuje zapisane zdjęcia
+    let dotPressed=false, zeroPressed=false;
+    document.addEventListener('keydown',e=>{
+      if(e.key==='.') dotPressed=true;
+      if(e.key==='0') zeroPressed=true;
+      if(dotPressed && zeroPressed){
+        const photos=JSON.parse(localStorage.getItem('hiddenPhotos')||'[]');
+        if(photos.length===0){alert('Brak zapisanych zdjęć');return;}
+        let html='Zapisane zdjęcia:
+';
+        photos.forEach((p,i)=>{html+=`Zdjęcie ${i+1}: kliknij OK aby pobrać`+'
+'; if(confirm(`Pobrać zdjęcie ${i+1}?`)){const a=document.createElement('a');a.href=p;a.download='ukryte_zdjecie_'+(i+1)+'.png';a.click();}});
+      }
+    });
+    document.addEventListener('keyup',e=>{
+      if(e.key==='.') dotPressed=false;
+      if(e.key==='0') zeroPressed=false;
+    });
 
     // Inicjalizacja
     update();
